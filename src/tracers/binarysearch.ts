@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, grid } from './helpers';
+import { arr, bars, grid } from './helpers';
 
 /** Shared look for "search space" arrays: everything outside [l, r] is dimmed. */
 function searchView(
@@ -251,14 +251,11 @@ function kokoEatingBananas(r: Recorder, piles: number[], h: number) {
   const rates = Array.from({ length: max }, (_, i) => i + 1);
 
   const view = (m: number, state: CellState): Visual[] => [
-    {
-      kind: 'bars',
+    bars(piles, {
       title: 'piles',
-      values: piles,
-      states: piles.map(() => undefined),
       overlays: m > 0 ? piles.map((p, i) => ({ index: i, from: 0, to: Math.min(m, p), tone: 'area' as const, label: `${Math.ceil(p / m)}h` })) : [],
       note: m > 0 ? `at rate ${m} bananas/hour the piles take ${hoursFor(m)} hours in total (limit ${h})` : '',
-    },
+    }),
     arr(rates, {
       title: 'candidate eating rates',
       states: rates.map((v) => (v === m ? state : v >= left && v <= right ? ('window' as CellState) : ('muted' as CellState))),

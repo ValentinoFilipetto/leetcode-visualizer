@@ -12,7 +12,36 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Recorder } from '../src/trace/recorder';
 import { tracers } from '../src/tracers';
-import type { Solution } from '../src/types';
+import type { Solution, Step } from '../src/types';
+
+/**
+ * Steps must be independent snapshots. Tracers mirror Java code that mutates in
+ * place, so an array handed to two different steps means both render whatever
+ * the array ends up holding — the earlier step silently shows the final state.
+ * Returns the paths of arrays reachable from more than one step.
+ */
+function sharedArrays(steps: Step[]): string[] {
+  const owner = new Map<object, number>();
+  const shared = new Set<string>();
+
+  const walk = (value: unknown, stepIndex: number, path: string) => {
+    if (value === null || typeof value !== 'object') return;
+    if (Array.isArray(value)) {
+      const seenAt = owner.get(value);
+      if (seenAt !== undefined && seenAt !== stepIndex) {
+        shared.add(path);
+        return;
+      }
+      owner.set(value, stepIndex);
+      value.forEach((item, i) => walk(item, stepIndex, `${path}[${i}]`));
+      return;
+    }
+    for (const [k, v] of Object.entries(value)) walk(v, stepIndex, `${path}.${k}`);
+  };
+
+  steps.forEach((step, i) => walk(step.visuals, i, 'visuals'));
+  return [...shared];
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 const data = JSON.parse(readFileSync(join(here, '..', 'src', 'data', 'solutions.generated.json'), 'utf8')) as {
@@ -60,6 +89,13 @@ for (const solution of data.solutions) {
     const noVisuals = recorder.steps.filter((s) => s.visuals.length === 0).length;
     if (noVisuals === recorder.steps.length) {
       console.error(`✕ ${solution.id} [${example.label}] has no visuals on any step`);
+      failures++;
+    }
+    const shared = sharedArrays(recorder.steps);
+    if (shared.length) {
+      console.error(
+        `✕ ${solution.id} [${example.label}] steps share mutable arrays (stepping back would show the wrong state): ${shared.slice(0, 5).join(', ')}`,
+      );
       failures++;
     }
     const noLines = recorder.steps.filter((s) => s.lines.length === 0).length;

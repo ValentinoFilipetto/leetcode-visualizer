@@ -17,16 +17,48 @@ import type {
 
 /* ── Visual builders ──────────────────────────────────────────────────────── */
 
+/*
+ * Every builder COPIES the data it is given. Tracers mirror the Java code, which
+ * usually mutates its input in place (Word Search writes '#', Number of Islands
+ * sinks land, a heap sifts its array). Storing those arrays by reference would
+ * make every recorded step share one object and render the final state, so each
+ * builder takes a snapshot instead.
+ */
+
 export function arr(values: (string | number)[], o: Partial<ArrayViz> = {}): ArrayViz {
-  return { kind: 'array', values, ...o };
+  const viz: ArrayViz = { kind: 'array', values, ...o };
+  return {
+    ...viz,
+    values: viz.values.slice(),
+    states: viz.states?.slice(),
+    labels: viz.labels?.slice(),
+    pointers: viz.pointers?.map((p) => ({ ...p })),
+    window: viz.window && { ...viz.window },
+  };
 }
 
 export function bars(values: number[], o: Partial<BarsViz> = {}): BarsViz {
-  return { kind: 'bars', values, ...o };
+  const viz: BarsViz = { kind: 'bars', values, ...o };
+  return {
+    ...viz,
+    values: viz.values.slice(),
+    states: viz.states?.slice(),
+    pointers: viz.pointers?.map((p) => ({ ...p })),
+    overlays: viz.overlays?.map((ov) => ({ ...ov })),
+  };
 }
 
 export function grid(values: (string | number)[][], o: Partial<GridViz> = {}): GridViz {
-  return { kind: 'grid', values, ...o };
+  const viz: GridViz = { kind: 'grid', values, ...o };
+  return {
+    ...viz,
+    values: viz.values.map((row) => row.slice()),
+    states: viz.states?.map((row) => row.slice()),
+    badges: viz.badges?.map((row) => row.slice()),
+    cursor: viz.cursor && ([...viz.cursor] as [number, number]),
+    rowLabels: viz.rowLabels?.slice(),
+    colLabels: viz.colLabels?.slice(),
+  };
 }
 
 export function mapOf(
@@ -42,15 +74,17 @@ export function setOf(title: string, keys: Iterable<string | number>, o: Partial
 }
 
 export function stack(title: string, items: (string | number)[], o: Partial<StackViz> = {}): StackViz {
-  return { kind: 'stack', title, items: items.map((value) => ({ value })), ...o };
+  const viz: StackViz = { kind: 'stack', title, items: items.map((value) => ({ value })), ...o };
+  return { ...viz, items: viz.items.map((item) => ({ ...item })) };
 }
 
 export function queue(title: string, items: (string | number)[], o: Partial<StackViz> = {}): StackViz {
-  return { kind: 'stack', title, items: items.map((value) => ({ value })), variant: 'queue', ...o };
+  const viz: StackViz = { kind: 'stack', title, items: items.map((value) => ({ value })), variant: 'queue', ...o };
+  return { ...viz, items: viz.items.map((item) => ({ ...item })) };
 }
 
 export function frames(title: string, items: (string | number)[], o: Partial<StackViz> = {}): StackViz {
-  return {
+  const viz: StackViz = {
     kind: 'stack',
     title,
     items: items.map((value) => ({ value })),
@@ -58,18 +92,22 @@ export function frames(title: string, items: (string | number)[], o: Partial<Sta
     emptyHint: 'no active calls',
     ...o,
   };
+  return { ...viz, items: viz.items.map((item) => ({ ...item })) };
 }
 
 export function chips(title: string, lines: string[], o: Partial<TextViz> = {}): TextViz {
-  return { kind: 'text', title, lines: lines.map((text) => ({ text })), chips: true, ...o };
+  const viz: TextViz = { kind: 'text', title, lines: lines.map((text) => ({ text })), chips: true, ...o };
+  return { ...viz, lines: viz.lines.map((line) => ({ ...line })) };
 }
 
 export function lines(title: string, items: string[], o: Partial<TextViz> = {}): TextViz {
-  return { kind: 'text', title, lines: items.map((text) => ({ text })), ...o };
+  const viz: TextViz = { kind: 'text', title, lines: items.map((text) => ({ text })), ...o };
+  return { ...viz, lines: viz.lines.map((line) => ({ ...line })) };
 }
 
 export function heap(title: string, items: (string | number)[], heapType: 'min' | 'max', o: Partial<HeapViz> = {}): HeapViz {
-  return { kind: 'heap', title, items, heapType, ...o };
+  const viz: HeapViz = { kind: 'heap', title, items, heapType, ...o };
+  return { ...viz, items: viz.items.slice(), states: viz.states?.slice() };
 }
 
 export function intervalsViz(
@@ -77,15 +115,23 @@ export function intervalsViz(
   intervals: IntervalsViz['intervals'],
   o: Partial<IntervalsViz> = {},
 ): IntervalsViz {
-  return { kind: 'intervals', title, intervals, ...o };
+  const viz: IntervalsViz = { kind: 'intervals', title, intervals, ...o };
+  return { ...viz, intervals: viz.intervals.map((iv) => ({ ...iv })) };
 }
 
 export function tree(root: TreeNodeViz | null, o: Partial<TreeViz> = {}): TreeViz {
-  return { kind: 'tree', root, ...o };
+  const viz: TreeViz = { kind: 'tree', root, ...o };
+  return { ...viz, root: cloneTree(viz.root) };
 }
 
 export function listViz(nodes: ListNodeViz[], o: Partial<ListViz> = {}): ListViz {
-  return { kind: 'list', nodes, ...o };
+  const viz: ListViz = { kind: 'list', nodes, ...o };
+  return {
+    ...viz,
+    nodes: viz.nodes.map((n) => ({ ...n })),
+    pointers: viz.pointers?.map((p) => ({ ...p })),
+    extraEdges: viz.extraEdges?.map((e) => ({ ...e })),
+  };
 }
 
 export function graphViz(
@@ -93,7 +139,8 @@ export function graphViz(
   edges: GraphViz['edges'],
   o: Partial<GraphViz> = {},
 ): GraphViz {
-  return { kind: 'graph', nodes, edges, ...o };
+  const viz: GraphViz = { kind: 'graph', nodes, edges, ...o };
+  return { ...viz, nodes: viz.nodes.map((n) => ({ ...n })), edges: viz.edges.map((e) => ({ ...e })) };
 }
 
 /* ── Small utilities used while replaying ─────────────────────────────────── */
