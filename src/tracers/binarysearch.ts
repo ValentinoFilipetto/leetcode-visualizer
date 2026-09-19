@@ -148,7 +148,7 @@ function searchRotated(r: Recorder, nums: number[], target: number) {
     const m = Math.floor((left + right) / 2);
     if (nums[m] > nums[right]) {
       r.step({
-        at: ['if (nums[m] > nums[right]) {', 'left = m + 1;'],
+        at: ['if (nums[m] > nums[right]) {', 'left = m + 1;@1'],
         explain: `nums[${m}] = ${nums[m]} > nums[${right}] = ${nums[right]} — the middle sits in the left run, so the pivot is further right.`,
         vars: { left, right, m },
         visuals: [searchView(nums, left, right, m, 'nums  (rotated)', 'compare')],
@@ -156,7 +156,7 @@ function searchRotated(r: Recorder, nums: number[], target: number) {
       left = m + 1;
     } else {
       r.step({
-        at: ['} else {', 'right = m;'],
+        at: ['} else {@1', 'right = m;'],
         explain: `nums[${m}] = ${nums[m]} ≤ nums[${right}] = ${nums[right]} — the middle is in the right run, so the pivot is at m or before it.`,
         vars: { left, right, m },
         visuals: [searchView(nums, left, right, m, 'nums  (rotated)', 'compare')],
@@ -192,7 +192,7 @@ function searchRotated(r: Recorder, nums: number[], target: number) {
   } else {
     right = pivot - 1;
     r.step({
-      at: ['} else {', 'right = pivot - 1;'],
+      at: ['} else {@2', 'right = pivot - 1;'],
       explain: `${target} is outside the right run, so search the left run nums[0…${right}].`,
       vars: { target, left, right },
       visuals: [searchView(nums, left, right, -1, 'nums  (rotated)')],

@@ -133,7 +133,7 @@ function kthLargestStream(r: Recorder, k: number, nums: number[], adds: number[]
     let removed: number | null = null;
     if (h.size > k) removed = h.poll();
     r.step({
-      at: ['minHeap.offer(num);', 'if (minHeap.size() > k) minHeap.poll();'],
+      at: ['minHeap.offer(num);', 'if (minHeap.size() > k) minHeap.poll();@1'],
       explain: removed === null ? `Add ${num}; the heap is not full yet.` : `Add ${num}, then evict the smallest value ${removed} to stay at size ${k}.`,
       vars: { num, size: h.size },
       visuals: view(removed === null ? 'window' : 'error'),
@@ -145,7 +145,7 @@ function kthLargestStream(r: Recorder, k: number, nums: number[], adds: number[]
     let removed: number | null = null;
     if (h.size > k) removed = h.poll();
     r.step({
-      at: ['minHeap.offer(val);', 'if (minHeap.size() > k) minHeap.poll();', 'return minHeap.peek();'],
+      at: ['minHeap.offer(val);', 'if (minHeap.size() > k) minHeap.poll();@2', 'return minHeap.peek();'],
       explain: `add(${val}): push it, ${removed === null ? 'the heap still fits' : `evict ${removed}`}, then the root is the ${ordinal(k)} largest of the whole stream.`,
       vars: { val, removed: removed ?? '—', answer: h.peek() },
       visuals: view('success'),

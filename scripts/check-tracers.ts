@@ -91,6 +91,15 @@ for (const solution of data.solutions) {
       console.error(`✕ ${solution.id} [${example.label}] has no visuals on any step`);
       failures++;
     }
+    if (recorder.ambiguous.length) {
+      const unique = new Map(recorder.ambiguous.map((a) => [a.snippet, a.lines]));
+      for (const [snippet, lineNumbers] of unique) {
+        console.error(
+          `✕ ${solution.id} [${example.label}] ${JSON.stringify(snippet)} matches lines ${lineNumbers.join(', ')} — it silently resolves to ${lineNumbers[0]}. Add "@n" or quote more of the line.`,
+        );
+        failures++;
+      }
+    }
     const shared = sharedArrays(recorder.steps);
     if (shared.length) {
       console.error(

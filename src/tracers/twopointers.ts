@@ -168,7 +168,7 @@ function validPalindromeII(r: Recorder, s: string) {
     }
 
     r.step({
-      at: ['left++;', 'right--;'],
+      at: ['left++;@1', 'right--;@1'],
       explain: `'${cs[left]}' matches '${cs[right]}' — no deletion needed yet.`,
       vars: { left, right },
       visuals: [
@@ -494,7 +494,7 @@ function threeSum(r: Recorder, input: number[]) {
 
       if (sum > 0) {
         r.step({
-          at: ['int sum = nums[i] + nums[l] + nums[r];', 'if (sum > 0) {', 'r--;'],
+          at: ['int sum = nums[i] + nums[l] + nums[r];', 'if (sum > 0) {', 'r--;@1'],
           explain: `${nums[i]} + ${nums[l]} + ${nums[rr]} = ${sum} > 0 — too big, pull r inwards.`,
           vars: { i, l, r: rr, sum },
           visuals: [view('compare'), resViz()],
@@ -502,7 +502,7 @@ function threeSum(r: Recorder, input: number[]) {
         rr--;
       } else if (sum < 0) {
         r.step({
-          at: ['int sum = nums[i] + nums[l] + nums[r];', '} else if (sum < 0) {', 'l++;'],
+          at: ['int sum = nums[i] + nums[l] + nums[r];', '} else if (sum < 0) {', 'l++;@1'],
           explain: `${nums[i]} + ${nums[l]} + ${nums[rr]} = ${sum} < 0 — too small, push l rightwards.`,
           vars: { i, l, r: rr, sum },
           visuals: [view('compare'), resViz()],

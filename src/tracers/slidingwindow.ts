@@ -244,7 +244,7 @@ function checkInclusion(r: Recorder, s1: string, s2: string) {
   }
 
   r.step({
-    at: 'return false;',
+    at: 'return false;@2',
     explain: 'No window of s2 ever matched the required letter counts.',
     visuals: [arr(chars(s2), { title: 's2' }), countView(need, 'need'), countView(window, 'window')],
     tone: 'error',

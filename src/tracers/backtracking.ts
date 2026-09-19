@@ -50,7 +50,7 @@ function subsets(r: Recorder, nums: number[]) {
     }
 
     r.step({
-      at: 'dfs(nums, i + 1, subset, res);',
+      at: 'dfs(nums, i + 1, subset, res);@1',
       explain: `Branch 1 — leave ${nums[i]} out.`,
       vars: { i, 'nums[i]': nums[i], subset: list(subset) },
       visuals: view(i, 'muted'),
@@ -129,7 +129,7 @@ function subsetsII(r: Recorder, input: number[]) {
 
     subset.push(nums[i]);
     r.step({
-      at: ['subset.add(nums[i]);', 'dfs(nums, i + 1, subset);'],
+      at: ['subset.add(nums[i]);', 'dfs(nums, i + 1, subset);@1'],
       explain: `Take ${nums[i]} and continue.`,
       vars: { i, subset: list(subset) },
       visuals: view(i, 'success'),
@@ -585,7 +585,7 @@ function letterCombinations(r: Recorder, digits: string) {
 
   backtracking(0);
   r.step({
-    at: 'return res;',
+    at: 'return res;@2',
     explain: `${res.length} combinations.`,
     visuals: [resultsViz('res', res.map((x) => `"${x}"`))],
     tone: 'success',
@@ -635,7 +635,8 @@ function wordSearch(r: Recorder, input: string[][], word: string) {
             ? 'already used on this path'
             : `'${board[rr][cc]}' ≠ '${word[i]}'`;
       r.step({
-        at: ["board[r][c] == '#' || board[r][c] != word.charAt(i)) {", 'return false;'],
+        // The second `return false;` is backtrack's; the first one ends exist().
+        at: ["board[r][c] == '#' || board[r][c] != word.charAt(i)) {", 'return false;@2'],
         explain: `(${rr}, ${cc}) fails: ${why}.`,
         vars: { r: rr, c: cc, i },
         visuals: view(rr, cc, i, 'error'),
@@ -691,7 +692,7 @@ function wordSearch(r: Recorder, input: string[][], word: string) {
       });
       if (backtrack(rr, cc, 0)) {
         r.step({
-          at: 'return true;',
+          at: 'return true;@1',
           explain: `"${word}" exists on the board.`,
           visuals: view(-1, -1, word.length, 'success'),
           tone: 'success',
@@ -703,7 +704,7 @@ function wordSearch(r: Recorder, input: string[][], word: string) {
   }
 
   r.step({
-    at: 'return false;@2',
+    at: 'return false;@1',
     explain: `No path spells "${word}".`,
     visuals: view(-1, -1, 0, 'error'),
     tone: 'error',

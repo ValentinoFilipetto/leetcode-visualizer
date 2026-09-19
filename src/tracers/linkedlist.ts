@@ -160,7 +160,7 @@ function mergeTwoLists(r: Recorder, a: number[], b: number[]) {
   while (list1 && list2) {
     if (list1.val < list2.val) {
       r.step({
-        at: ['if (list1.val < list2.val) {', 'mergedList.next = list1;', 'list1 = list1.next;'],
+        at: ['if (list1.val < list2.val) {', 'mergedList.next = list1;@1', 'list1 = list1.next;'],
         explain: `${list1.val} < ${list2.val}, so splice the list1 node onto the merged list.`,
         vars: { 'list1.val': list1.val, 'list2.val': list2.val },
         visuals: view('l1'),
@@ -169,7 +169,7 @@ function mergeTwoLists(r: Recorder, a: number[], b: number[]) {
       list1 = list1.next;
     } else {
       r.step({
-        at: ['} else {', 'mergedList.next = list2;', 'list2 = list2.next;'],
+        at: ['} else {', 'mergedList.next = list2;@1', 'list2 = list2.next;'],
         explain: `${list2.val} ≤ ${list1.val}, so take the list2 node instead.`,
         vars: { 'list1.val': list1.val, 'list2.val': list2.val },
         visuals: view('l2'),
@@ -183,14 +183,14 @@ function mergeTwoLists(r: Recorder, a: number[], b: number[]) {
   if (list1) {
     merged.next = list1;
     r.step({
-      at: ['if (list1 != null) {', 'mergedList.next = list1;'],
+      at: ['if (list1 != null) {', 'mergedList.next = list1;@2'],
       explain: 'list2 ran out. Everything left in list1 is already sorted and larger, so append it in one link.',
       visuals: view(),
     });
   } else if (list2) {
     merged.next = list2;
     r.step({
-      at: ['} else if (list2 != null) {', 'mergedList.next = list2;'],
+      at: ['} else if (list2 != null) {', 'mergedList.next = list2;@2'],
       explain: 'list1 ran out, so append the remainder of list2 in one link.',
       visuals: view(),
     });
@@ -372,7 +372,7 @@ function removeNthFromEnd(r: Recorder, values: number[], n: number) {
     first = first!.next;
     left--;
     r.step({
-      at: ['while (n > 0) {', 'first = first.next;'],
+      at: ['while (n > 0) {', 'first = first.next;@1'],
       explain: `Open the gap: first moves ahead, ${left} step(s) to go.`,
       vars: { n: left, first: first ? first.val : 'null' },
       visuals: view(),
@@ -383,7 +383,7 @@ function removeNthFromEnd(r: Recorder, values: number[], n: number) {
     first = first.next;
     second = second.next!;
     r.step({
-      at: ['while (first != null) {', 'first = first.next;', 'second = second.next;'],
+      at: ['while (first != null) {', 'first = first.next;@2', 'second = second.next;'],
       explain: `Both pointers advance together, keeping the gap of ${n}.`,
       vars: { first: first ? first.val : 'null', second: second.val },
       visuals: view(),
@@ -712,7 +712,7 @@ function lruCache(r: Recorder, capacity: number, ops: LruOp[]) {
       const entry = order.splice(idx, 1)[0];
       order.push(entry);
       r.step({
-        at: ['DoublyLinkedListNode node = map.get(key);', 'removeNode(node);', 'appendRight(node);'],
+        at: ['DoublyLinkedListNode node = map.get(key);@1', 'removeNode(node);@1', 'appendRight(node);@1'],
         explain: `get(${key}) = ${entry.value}. Reading counts as a use, so the node is unlinked and re-appended at the MRU end.`,
         vars: { key, value: entry.value },
         visuals: view(key, 'success'),
@@ -730,7 +730,7 @@ function lruCache(r: Recorder, capacity: number, ops: LruOp[]) {
       order.push(entry);
       map.set(key, value);
       r.step({
-        at: ['node.value = value;', 'removeNode(node);', 'appendRight(node);@2'],
+        at: ['node.value = value;', 'removeNode(node);@2', 'appendRight(node);@2'],
         explain: `put(${key}, ${value}): the key already exists, so update it in place and move it to the MRU end.`,
         vars: { key, value },
         visuals: view(key, 'active'),
@@ -741,7 +741,7 @@ function lruCache(r: Recorder, capacity: number, ops: LruOp[]) {
     order.push({ key, value });
     map.set(key, value);
     r.step({
-      at: ['DoublyLinkedListNode node = new DoublyLinkedListNode(key, value);', 'map.put(key, node);', 'size++;'],
+      at: ['DoublyLinkedListNode node = new DoublyLinkedListNode(key, value);', 'map.put(key, node);', 'appendRight(node);@3', 'size++;'],
       explain: `put(${key}, ${value}): a new node goes to the MRU end.`,
       vars: { key, value, size: order.length, capacity },
       visuals: view(key, 'active'),

@@ -22,6 +22,12 @@ export class Recorder {
   readonly steps: Step[] = [];
   /** Snippets that did not match any line — surfaced by `npm run check`. */
   readonly unresolved: string[] = [];
+  /**
+   * Snippets that match several lines but do not say which one, so they
+   * silently resolve to the first. `npm run check` reports these: a line that
+   * merely exists is not the same as the line that is executing.
+   */
+  readonly ambiguous: { snippet: string; lines: number[] }[] = [];
 
   /** Visuals reused on every step unless a step overrides them. */
   private sticky: Visual[] = [];
@@ -34,20 +40,25 @@ export class Recorder {
   at(snippet: string): number {
     let needle = snippet;
     let occurrence = 1;
-    const m = snippet.match(/^(.*)@(\d+)$/);
-    if (m) {
-      needle = m[1];
-      occurrence = Number(m[2]);
+    const explicit = snippet.match(/^(.*)@(\d+)$/);
+    if (explicit) {
+      needle = explicit[1];
+      occurrence = Number(explicit[2]);
     }
-    let seen = 0;
+
+    const matches: number[] = [];
     for (let i = 0; i < this.codeLines.length; i++) {
-      if (this.codeLines[i].includes(needle)) {
-        seen++;
-        if (seen === occurrence) return i + 1;
-      }
+      if (this.codeLines[i].includes(needle)) matches.push(i + 1);
     }
-    this.unresolved.push(snippet);
-    return 0;
+
+    if (!explicit && matches.length > 1) {
+      this.ambiguous.push({ snippet, lines: matches });
+    }
+    if (matches.length < occurrence) {
+      this.unresolved.push(snippet);
+      return 0;
+    }
+    return matches[occurrence - 1];
   }
 
   /** Visuals to repeat on every following step that does not specify its own. */

@@ -93,7 +93,7 @@ function insertInterval(r: Recorder, intervals: Iv[], newIntervalInput: Iv) {
     if (newInterval === null || interval[1] < newInterval[0]) {
       res.push(interval);
       r.step({
-        at: ['if (newInterval == null || interval[1] < newInterval[0]) {', 'res.add(interval);'],
+        at: ['if (newInterval == null || interval[1] < newInterval[0]) {', 'res.add(interval);@1'],
         explain:
           newInterval === null
             ? `${fmt(interval)} comes after the merge window closed — copy it straight through.`
@@ -104,7 +104,7 @@ function insertInterval(r: Recorder, intervals: Iv[], newIntervalInput: Iv) {
     } else if (interval[0] > newInterval[1]) {
       res.push(newInterval, interval);
       r.step({
-        at: ['} else if (interval[0] > newInterval[1]) {', 'res.add(newInterval);', 'newInterval = null;'],
+        at: ['} else if (interval[0] > newInterval[1]) {', 'res.add(newInterval);@1', 'newInterval = null;'],
         explain: `${fmt(interval)} starts at ${interval[0]}, after the new interval ends at ${newInterval[1]}. The merge window is closed: place the new interval first, then this one.`,
         vars: { i, inserted: fmt(newInterval) },
         visuals: [rows(intervals, (k) => (k === i ? 'active' : k < i ? ('muted' as CellState) : undefined), 'intervals'), rows(res, () => 'success', 'res')],
@@ -167,7 +167,7 @@ function mergeIntervals(r: Recorder, input: Iv[]) {
     if (merged[1] < next[0]) {
       res.push(merged);
       r.step({
-        at: ['if (mergedInterval[1] < intervals[i + 1][0]) {', 'res.add(mergedInterval);', 'mergedInterval = intervals[i + 1];'],
+        at: ['if (mergedInterval[1] < intervals[i + 1][0]) {', 'res.add(mergedInterval);@1', 'mergedInterval = intervals[i + 1];'],
         explain: `${fmt(merged)} ends at ${merged[1]}, before ${fmt(next)} starts at ${next[0]} — nothing can extend it any more, so flush it and start a new one.`,
         vars: { i, flushed: fmt(merged), next: fmt(next) },
         visuals: view(i, 'compare'),
@@ -189,7 +189,7 @@ function mergeIntervals(r: Recorder, input: Iv[]) {
 
   res.push(merged);
   r.step({
-    at: ['res.add(mergedInterval);', 'return res.toArray(new int[res.size()][]);'],
+    at: ['res.add(mergedInterval);@2', 'return res.toArray(new int[res.size()][]);'],
     explain: 'The interval still being built at the end also belongs to the answer.',
     visuals: [rows(res, () => 'success', 'res')],
     tone: 'success',

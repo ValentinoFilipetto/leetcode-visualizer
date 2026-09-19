@@ -81,7 +81,7 @@ function implementTrie(r: Recorder, ops: TrieOp[]) {
         curr = curr.children.get(c)!;
         path.push(curr.id);
         r.step({
-          at: ['curr.children.putIfAbsent(c, new TrieNode());', 'curr = curr.children.get(c);'],
+          at: ['curr.children.putIfAbsent(c, new TrieNode());@1', 'curr = curr.children.get(c);@1'],
           explain: existed
             ? `insert("${word}"): '${c}' already exists, so the prefix is shared — just walk into it.`
             : `insert("${word}"): '${c}' is new, so create a node for it.`,
@@ -112,7 +112,7 @@ function implementTrie(r: Recorder, ops: TrieOp[]) {
       if (!next) {
         failed = true;
         r.step({
-          at: op[0] === 'search' ? '} else return false;' : '} else return false;@2',
+          at: op[0] === 'search' ? '} else return false;@1' : '} else return false;@2',
           explain: `${op[0]}("${word}"): there is no '${c}' edge here, so the ${op[0] === 'search' ? 'word' : 'prefix'} is not in the trie.`,
           vars: { word, c, i },
           visuals: [
@@ -127,7 +127,7 @@ function implementTrie(r: Recorder, ops: TrieOp[]) {
       curr = next;
       path.push(curr.id);
       r.step({
-        at: op[0] === 'search' ? 'if (curr.children.containsKey(c)) {' : 'if (curr.children.containsKey(c)) {@2',
+        at: op[0] === 'search' ? 'if (curr.children.containsKey(c)) {@1' : 'if (curr.children.containsKey(c)) {@2',
         explain: `${op[0]}("${word}"): follow the '${c}' edge.`,
         vars: { word, c, i },
         visuals: [
@@ -186,7 +186,7 @@ function addAndSearch(r: Recorder, ops: WordOp[]) {
       }
       curr.isEndOfWord = true;
       r.step({
-        at: ['curr.children.putIfAbsent(c, new TrieNode());', 'curr.isEndOfWord = true;'],
+        at: ['curr.children.putIfAbsent(c, new TrieNode());@1', 'curr.isEndOfWord = true;'],
         explain: `addWord("${word}") walks the letters, creating nodes where needed, and flags the last one.`,
         vars: { word },
         visuals: [trieViz(root, { [curr.id]: 'success' })],
@@ -272,7 +272,7 @@ function addAndSearch(r: Recorder, ops: WordOp[]) {
 
     const found = dfs(0, root);
     r.step({
-      at: found ? 'return dfs(word, 0, this.root);' : 'return false;',
+      at: found ? 'return dfs(word, 0, this.root);' : 'return false;@2',
       explain: found ? `"${word}" matches a stored word.` : `No stored word matches "${word}".`,
       vars: { word },
       visuals: [trieViz(root)],

@@ -360,7 +360,7 @@ function largestRectangle(r: Recorder, heights: number[]) {
     while (st.length > 0 && heights[st[st.length - 1]] >= heights[i]) {
       const popped = st.pop()!;
       r.step({
-        at: ['while (!stack.isEmpty() && heights[stack.peek()] >= heights[i]) {', 'stack.pop();'],
+        at: ['while (!stack.isEmpty() && heights[stack.peek()] >= heights[i]) {@1', 'stack.pop();@1'],
         explain: `Bar ${popped} (height ${heights[popped]}) is at least as tall as bar ${i} (height ${heights[i]}), so it cannot be bar ${i}'s left boundary — pop it.`,
         vars: { i, popped },
         visuals: view(i, 'active', true, false),
@@ -369,7 +369,7 @@ function largestRectangle(r: Recorder, heights: number[]) {
     if (st.length > 0) left[i] = st[st.length - 1];
     st.push(i);
     r.step({
-      at: ['if (!stack.isEmpty()) {', 'left[i] = stack.peek();', 'stack.push(i);'],
+      at: ['if (!stack.isEmpty()) {@1', 'left[i] = stack.peek();', 'stack.push(i);@1'],
       explain:
         left[i] === -1
           ? `Nothing shorter to the left of bar ${i}, so it can extend to the very start: left[${i}] = −1.`

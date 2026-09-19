@@ -561,6 +561,9 @@ function kthSmallest(r: Recorder, values: (number | null)[], k: number) {
 
 function lca(r: Recorder, values: (number | null)[], p: number, q: number) {
   const root = tbuild(values);
+  // Which `return root;` actually produced the answer — line 16 (the split
+  // case) or line 19 (one of the nodes is the ancestor itself).
+  let answeredAt = 'return root;@1';
 
   const go = (n: TNode | null): number | null => {
     if (!n) return null;
@@ -573,6 +576,7 @@ function lca(r: Recorder, values: (number | null)[], p: number, q: number) {
         visuals: [tv('BST', root, { states: { [n.id]: 'success' } })],
         tone: 'success',
       });
+      answeredAt = 'return root;@1';
       return n.val;
     }
     if (p === n.val || q === n.val) {
@@ -583,6 +587,7 @@ function lca(r: Recorder, values: (number | null)[], p: number, q: number) {
         visuals: [tv('BST', root, { states: { [n.id]: 'success' } })],
         tone: 'success',
       });
+      answeredAt = 'if (p.val == root.val || q.val == root.val) return root;';
       return n.val;
     }
     if (p < n.val) {
@@ -611,7 +616,7 @@ function lca(r: Recorder, values: (number | null)[], p: number, q: number) {
   });
   const answer = go(root);
   r.step({
-    at: 'return root;',
+    at: answeredAt,
     explain: `The lowest common ancestor of ${p} and ${q} is ${answer}.`,
     visuals: [tv('BST', root)],
     tone: 'success',

@@ -587,7 +587,7 @@ function cloneGraph(r: Recorder, adjacency: number[][]) {
   const dfs = (id: string) => {
     if (cloned.has(id)) {
       r.step({
-        at: ['if (oldToNew.containsKey(node)) {', 'return oldToNew.get(node);'],
+        at: ['if (oldToNew.containsKey(node)) {', 'return oldToNew.get(node);@2'],
         explain: `Node ${id} has been cloned already — return the existing copy instead of recursing again.`,
         vars: { node: id },
         visuals: view(id, 'done'),
@@ -618,7 +618,7 @@ function cloneGraph(r: Recorder, adjacency: number[][]) {
   dfs('1');
 
   r.step({
-    at: 'return oldToNew.get(node);',
+    at: 'return oldToNew.get(node);@1',
     explain: 'Every node and edge exists twice now, with no references shared between the two graphs.',
     visuals: view(),
     tone: 'success',
