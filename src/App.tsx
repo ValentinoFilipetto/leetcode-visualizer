@@ -3,7 +3,7 @@ import data from './data/solutions.generated.json';
 import type { Solution } from './types';
 import { Sidebar } from './components/Sidebar';
 import { SolutionView } from './components/SolutionView';
-import { IconExternal, IconMenu, IconMoon, IconSun } from './components/icons';
+import { IconExternal, IconMenu, IconMoon, IconSidebar, IconSun } from './components/icons';
 import { tracers } from './tracers';
 
 const JAVA_REPO = 'https://github.com/ValentinoFilipetto/java-leetcode-solutions';
@@ -29,11 +29,16 @@ export default function App() {
     () => (localStorage.getItem('theme') as 'dark' | 'light') ?? 'dark',
   );
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     window.location.hash = `/${selectedId}`;
@@ -54,7 +59,7 @@ export default function App() {
   );
 
   return (
-    <div className="app">
+    <div className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       {menuOpen && <div className="scrim" onClick={() => setMenuOpen(false)} />}
       <Sidebar
         className={menuOpen ? 'open' : ''}
@@ -70,6 +75,13 @@ export default function App() {
         <header className="topbar">
           <button className="icon-btn menu-btn" onClick={() => setMenuOpen((o) => !o)} title="Problems">
             <IconMenu />
+          </button>
+          <button
+            className="icon-btn collapse-btn"
+            onClick={() => setSidebarCollapsed((c) => !c)}
+            title={sidebarCollapsed ? 'Show problem list' : 'Hide problem list'}
+          >
+            <IconSidebar />
           </button>
           <div style={{ minWidth: 0 }}>
             <h1>

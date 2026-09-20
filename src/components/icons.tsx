@@ -96,3 +96,11 @@ export const IconMinimize = () => (
     <path d="M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5" />
   </svg>
 );
+
+/** A panel with a divider — the conventional "toggle sidebar" glyph, same icon for both directions. */
+export const IconSidebar = () => (
+  <svg {...base}>
+    <rect x="3" y="4" width="18" height="16" rx="3" />
+    <path d="M9.5 4v16" />
+  </svg>
+);
