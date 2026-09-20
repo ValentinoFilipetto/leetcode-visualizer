@@ -20,11 +20,11 @@ export interface StepSpec {
 export class Recorder {
   readonly codeLines: string[];
   readonly steps: Step[] = [];
-  /** Snippets that did not match any line — surfaced by `npm run check`. */
+  /** Snippets that did not match any line — surfaced by `pnpm run check`. */
   readonly unresolved: string[] = [];
   /**
    * Snippets that match several lines but do not say which one, so they
-   * silently resolve to the first. `npm run check` reports these: a line that
+   * silently resolve to the first. `pnpm run check` reports these: a line that
    * merely exists is not the same as the line that is executing.
    */
   readonly ambiguous: { snippet: string; lines: number[] }[] = [];

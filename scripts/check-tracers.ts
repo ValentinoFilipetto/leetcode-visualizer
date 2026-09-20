@@ -5,7 +5,7 @@
  * that no longer exists in the Java file (which would silently drop the line
  * highlighting). Also reports solutions that still have no tracer at all.
  *
- *   npm run check
+ *   pnpm run check
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

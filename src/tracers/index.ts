@@ -15,7 +15,7 @@ import { twoPointerTracers } from './twopointers';
 
 /**
  * Every tracer, keyed by solution id (`difficulty/category/ClassName`).
- * `npm run check` replays all of them and reports any solution without one.
+ * `pnpm run check` replays all of them and reports any solution without one.
  */
 export const tracers: Record<string, Tracer> = {
   ...hashingTracers,

@@ -1,12 +1,12 @@
 # Adding a visualization
 
 Every solution in the Java repository needs one **tracer**: a TypeScript replay of the algorithm
-that records a snapshot per step. `npm run check` lists the solutions that do not have one yet.
+that records a snapshot per step. `pnpm run check` lists the solutions that do not have one yet.
 
 ## 1. Re-extract the sources
 
 ```
-npm run extract
+pnpm run extract
 ```
 
 This rewrites `src/data/solutions.generated.json` from the Java repo (difficulty, pattern,
@@ -49,7 +49,7 @@ Then add the map to `src/tracers/index.ts`.
 ### Rules of thumb
 
 - **`at` quotes the Java line, never a line number.** Use `'snippet@2'` for the second occurrence.
-  A snippet that stops matching fails `npm run check` instead of silently losing the highlight.
+  A snippet that stops matching fails `pnpm run check` instead of silently losing the highlight.
 - **Mirror the Java control flow**, including its early returns and its quirks. The visualization is
   only useful if it is the same algorithm.
 - **`explain` says why, not what.** The code is already on screen; the sentence should carry the
@@ -69,6 +69,6 @@ the colour language across every problem, so keep their meaning consistent.
 ## 3. Check
 
 ```
-npm run check       # replays every example, reports unresolved snippets and missing tracers
-npm run typecheck
+pnpm run check       # replays every example, reports unresolved snippets and missing tracers
+pnpm run typecheck
 ```

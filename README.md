@@ -2,7 +2,7 @@
 
 Interactive, step-by-step visualizations for **every solution** in
 [java-leetcode-solutions](https://github.com/ValentinoFilipetto/java-leetcode-solutions) —
-96 problems, 187 worked examples, ~2,200 recorded algorithm steps.
+101 problems, 197 worked examples, ~2,350 recorded algorithm steps.
 
 Pick a problem, press play (or tap `→`), and watch the Java source execute line by line next to a
 live picture of the data structures: arrays with pointers, sliding windows, linked lists, trees,
@@ -10,9 +10,9 @@ graphs, grids, heaps, tries, stacks and intervals. Every step is a full snapshot
 **backwards and forwards** freely.
 
 ```
-npm install
-npm run extract     # read the Java repo -> src/data/solutions.generated.json
-npm run dev         # http://localhost:5173
+pnpm install
+pnpm run extract    # read the Java repo -> src/data/solutions.generated.json
+pnpm run dev        # http://localhost:5173
 ```
 
 ## What you get per problem
@@ -36,7 +36,7 @@ that records what the Java code does, step by step:
 ```
 src/
   data/solutions.generated.json   generated from the Java repo (committed, so the app is standalone)
-  tracers/                        one file per pattern, 96 tracers + a shared helper layer
+  tracers/                        one file per pattern, 101 tracers + a shared helper layer
   trace/recorder.ts               collects steps, resolves Java source lines by content
   components/viz/                 the renderers: arrays, bars, grids, lists, trees, graphs, heaps…
   types.ts                        the vocabulary shared by tracers and renderers
@@ -56,19 +56,19 @@ r.step({
 });
 ```
 
-So when the Java repository changes, nothing silently breaks: `npm run check` replays all 187
+So when the Java repository changes, nothing silently breaks: `pnpm run check` replays all 197
 examples and fails loudly if a quoted line no longer exists, if a tracer throws, or if a solution
 has no tracer at all.
 
 ```
-npm run check       # 96/96 solutions traced · 187 examples · 2170 steps total
-npm run typecheck
-npm run build
+pnpm run check       # 101/101 solutions traced · 197 examples · 2356 steps total
+pnpm run typecheck
+pnpm run build
 ```
 
 ## Pointing it at your own checkout
 
-`npm run extract` looks for `../java-leetcode-solutions` by default:
+`pnpm run extract` looks for `../java-leetcode-solutions` by default:
 
 ```
 node scripts/extract-solutions.mjs /path/to/java-leetcode-solutions
@@ -83,7 +83,7 @@ Premium.
 The build is a static bundle — any static host works.
 
 ```
-BASE_PATH=/leetcode-visualizer/ npm run build   # for a GitHub Pages project site
+BASE_PATH=/leetcode-visualizer/ pnpm run build  # for a GitHub Pages project site
 ```
 
 A GitHub Actions workflow for Pages is included in `.github/workflows/deploy.yml`: enable Pages with
@@ -91,8 +91,8 @@ A GitHub Actions workflow for Pages is included in `.github/workflows/deploy.yml
 
 ## Adding a problem
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) — a new solution in the Java repo needs `npm run extract`
-plus one tracer, and `npm run check` tells you exactly what is missing.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) — a new solution in the Java repo needs `pnpm run extract`
+plus one tracer, and `pnpm run check` tells you exactly what is missing.
 
 ## Licence
 

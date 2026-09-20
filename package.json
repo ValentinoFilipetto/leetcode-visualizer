@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Interactive, step-by-step visualizations for every solution in java-leetcode-solutions.",
+  "packageManager": "pnpm@12.5.1",
   "scripts": {
     "extract": "node scripts/extract-solutions.mjs",
     "dev": "vite",
