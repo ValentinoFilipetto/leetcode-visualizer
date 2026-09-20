@@ -2,6 +2,8 @@ import type {
   ArrayViz,
   BarsViz,
   CellState,
+  DecisionTreeNodeViz,
+  DecisionTreeViz,
   GraphViz,
   GridViz,
   HeapViz,
@@ -124,6 +126,11 @@ export function tree(root: TreeNodeViz | null, o: Partial<TreeViz> = {}): TreeVi
   return { ...viz, root: cloneTree(viz.root) };
 }
 
+export function decisionTree(root: DecisionTreeNodeViz | null, o: Partial<DecisionTreeViz> = {}): DecisionTreeViz {
+  const viz: DecisionTreeViz = { kind: 'decisionTree', root, ...o };
+  return { ...viz, root: cloneDecisionTree(viz.root) };
+}
+
 export function listViz(nodes: ListNodeViz[], o: Partial<ListViz> = {}): ListViz {
   const viz: ListViz = { kind: 'list', nodes, ...o };
   return {
@@ -190,6 +197,12 @@ export function treeFromArray(values: (number | string | null)[]): TreeNodeViz |
 export function cloneTree(node: TreeNodeViz | null | undefined): TreeNodeViz | null {
   if (!node) return null;
   return { ...node, left: cloneTree(node.left), right: cloneTree(node.right) };
+}
+
+/** Deep-copies a decision tree — same reason as cloneTree, but n-ary. */
+export function cloneDecisionTree(node: DecisionTreeNodeViz | null | undefined): DecisionTreeNodeViz | null {
+  if (!node) return null;
+  return { ...node, children: node.children?.map((c) => cloneDecisionTree(c)!) };
 }
 
 /** Applies `state` to the nodes whose id (or value) is in `ids`. */

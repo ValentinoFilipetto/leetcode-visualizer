@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
-import type { CellState, TextViz, Tracer, Visual } from '../types';
-import { arr, chars, chips, frames, grid, list } from './helpers';
+import type { CellState, DecisionTreeNodeViz, TextViz, Tracer, Visual } from '../types';
+import { arr, chars, chips, decisionTree, frames, grid, list } from './helpers';
 
 /** Results panel: every finished branch, with the newest one highlighted. */
 function resultsViz(title: string, items: string[]): TextViz {
@@ -175,82 +175,82 @@ function subsetsII(r: Recorder, input: number[]) {
 function combinationSum(r: Recorder, nums: number[], target: number) {
   const res: number[][] = [];
   const combination: number[] = [];
-  const calls: string[] = [];
+  let uid = 0;
+  const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `cs${uid++}`, label, edgeLabel, children: [] });
+  const root = mkNode('[]');
 
-  const view = (i: number, sum: number, state: CellState = 'active'): Visual[] => [
-    arr(nums, {
-      title: 'nums',
-      states: nums.map((_, k) => (k === i ? state : undefined)),
-      pointers: i < nums.length ? [{ name: 'i', index: i }] : [],
-    }),
-    arr(combination, {
-      title: `combination  (sum ${sum} / target ${target})`,
-      states: combination.map(() => (sum === target ? ('success' as CellState) : sum > target ? ('error' as CellState) : ('window' as CellState))),
-    }),
-    frames('call stack', calls.slice().reverse()),
+  const view = (): Visual[] => [
+    decisionTree(root, { title: 'decision tree  (take nums[i] then skip nums[i], per node)' }),
     resultsViz('res', res.map((s) => `[${s.join(', ')}]`)),
   ];
 
   r.step({
     at: 'dfs(nums, 0, target, 0, new ArrayList<>());',
     explain:
-      'Each candidate may be reused, so "take" keeps the same index i while "skip" advances to i + 1. Carrying the running sum avoids re-adding the list each call.',
+      'Each candidate may be reused, so "take" keeps the same index i while "skip" advances to i + 1. Every recursive call becomes one node below: the tree is a direct picture of the search.',
     vars: { target },
-    visuals: view(0, 0),
+    visuals: view(),
   });
 
-  const dfs = (i: number, sum: number) => {
-    calls.push(`dfs(i=${i}, sum=${sum})`);
+  const dfs = (i: number, sum: number, node: DecisionTreeNodeViz) => {
     if (sum === target) {
       res.push(combination.slice());
+      node.label = `[${combination.join(',')}] ✓`;
+      node.state = 'success';
       r.step({
         at: ['if (sum == target) {', 'res.add(new ArrayList<>(combination));'],
         explain: `[${combination.join(', ')}] sums to ${target} exactly.`,
         vars: { sum, target, combination: list(combination) },
-        visuals: view(i, sum, 'success'),
+        visuals: view(),
         tone: 'success',
       });
-      calls.pop();
       return;
     }
     if (i === nums.length || sum > target) {
+      node.label = `[${combination.join(',')}] ✗`;
+      node.state = 'error';
       r.step({
         at: 'if (i == nums.length || sum > target) return;',
         explain: sum > target ? `The sum ${sum} already overshoots ${target} — prune this branch.` : 'No candidates left to try.',
         vars: { i, sum, target },
-        visuals: view(i, sum, 'error'),
+        visuals: view(),
         tone: 'warn',
       });
-      calls.pop();
       return;
     }
 
     combination.push(nums[i]);
+    const takeNode = mkNode(`[${combination.join(',')}]`, `+${nums[i]}`);
+    takeNode.state = 'active';
+    node.children!.push(takeNode);
     r.step({
       at: ['combination.add(nums[i]);', 'dfs(nums, i, target, sum + nums[i], combination);'],
-      explain: `Option 1 — take ${nums[i]} and stay at the same index, so it can be taken again.`,
+      explain: `Option 1 — take ${nums[i]} and stay at index ${i}, so it can be taken again.`,
       vars: { i, 'nums[i]': nums[i], sum: sum + nums[i] },
-      visuals: view(i, sum + nums[i], 'success'),
+      visuals: view(),
     });
-    dfs(i, sum + nums[i]);
+    dfs(i, sum + nums[i], takeNode);
+    if (takeNode.state === 'active') takeNode.state = 'done';
     combination.pop();
 
+    const skipNode = mkNode(`[${combination.join(',')}]`, `skip ${nums[i]}`);
+    skipNode.state = 'active';
+    node.children!.push(skipNode);
     r.step({
       at: ['combination.remove(combination.size() - 1);', 'dfs(nums, i + 1,target, sum, combination);'],
       explain: `Option 2 — never use ${nums[i]} again in this branch.`,
       vars: { i, 'nums[i]': nums[i], sum },
-      visuals: view(i, sum, 'muted'),
+      visuals: view(),
     });
-    dfs(i + 1, sum);
-
-    calls.pop();
+    dfs(i + 1, sum, skipNode);
+    if (skipNode.state === 'active') skipNode.state = 'done';
   };
 
-  dfs(0, 0);
+  dfs(0, 0, root);
   r.step({
     at: 'return res;',
     explain: `${res.length} combination(s) reach ${target}.`,
-    visuals: [resultsViz('res', res.map((s) => `[${s.join(', ')}]`))],
+    visuals: view(),
     tone: 'success',
     result: `return [${res.map((s) => `[${s.join(',')}]`).join(', ')}]`,
   });
@@ -262,16 +262,12 @@ function combinationSumII(r: Recorder, input: number[], target: number) {
   const candidates = input.slice().sort((a, b) => a - b);
   const res: number[][] = [];
   const combination: number[] = [];
-  const calls: string[] = [];
+  let uid = 0;
+  const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `cs2_${uid++}`, label, edgeLabel, children: [] });
+  const root = mkNode('[]');
 
-  const view = (i: number, sum: number, state: CellState = 'active'): Visual[] => [
-    arr(candidates, {
-      title: 'candidates  (sorted)',
-      states: candidates.map((_, k) => (k === i ? state : undefined)),
-      pointers: i < candidates.length ? [{ name: 'i', index: i }] : [],
-    }),
-    arr(combination, { title: `combination  (sum ${sum} / target ${target})`, states: combination.map(() => 'window' as CellState) }),
-    frames('call stack', calls.slice().reverse()),
+  const view = (): Visual[] => [
+    decisionTree(root, { title: 'decision tree  (each candidate is taken at most once)' }),
     resultsViz('res', res.map((s) => `[${s.join(', ')}]`)),
   ];
 
@@ -279,43 +275,48 @@ function combinationSumII(r: Recorder, input: number[], target: number) {
     at: 'Arrays.sort(candidates);',
     explain: `Each candidate may be used at most once, and duplicates must not produce duplicate combinations. Sorting (${list(candidates)}) makes both easy.`,
     vars: { target },
-    visuals: view(0, 0),
+    visuals: view(),
   });
 
-  const dfs = (i: number, sum: number) => {
-    calls.push(`dfs(i=${i}, sum=${sum})`);
+  const dfs = (i: number, sum: number, node: DecisionTreeNodeViz) => {
     if (sum === target) {
       res.push(combination.slice());
+      node.label = `[${combination.join(',')}] ✓`;
+      node.state = 'success';
       r.step({
         at: 'res.add(new ArrayList<>(combination));',
         explain: `[${combination.join(', ')}] hits the target.`,
         vars: { sum, combination: list(combination) },
-        visuals: view(i, sum, 'success'),
+        visuals: view(),
         tone: 'success',
       });
-      calls.pop();
       return;
     }
     if (i >= candidates.length || sum > target) {
+      node.label = `[${combination.join(',')}] ✗`;
+      node.state = 'error';
       r.step({
         at: 'if (i >= candidates.length || sum > target) return;',
         explain: sum > target ? `Sum ${sum} exceeds ${target} — prune.` : 'Out of candidates.',
         vars: { i, sum },
-        visuals: view(i, sum, 'error'),
+        visuals: view(),
         tone: 'warn',
       });
-      calls.pop();
       return;
     }
 
     combination.push(candidates[i]);
+    const takeNode = mkNode(`[${combination.join(',')}]`, `+${candidates[i]}`);
+    takeNode.state = 'active';
+    node.children!.push(takeNode);
     r.step({
       at: ['combination.add(candidates[i]);', 'dfs(candidates, target, i + 1, combination, sum + candidates[i]);'],
       explain: `Take ${candidates[i]} and move to index ${i + 1} — one use only.`,
       vars: { i, sum: sum + candidates[i] },
-      visuals: view(i, sum + candidates[i], 'success'),
+      visuals: view(),
     });
-    dfs(i + 1, sum + candidates[i]);
+    dfs(i + 1, sum + candidates[i], takeNode);
+    if (takeNode.state === 'active') takeNode.state = 'done';
     combination.pop();
 
     let j = i;
@@ -325,26 +326,29 @@ function combinationSumII(r: Recorder, input: number[], target: number) {
         at: 'while (i <  candidates.length  - 1 && candidates[i] == candidates[i + 1]) i++;',
         explain: `Skip the remaining copies of ${candidates[i]} (up to index ${j}) before the skip branch, otherwise the same combination would be built again with a different copy.`,
         vars: { i: j },
-        visuals: view(j, sum, 'error'),
+        visuals: view(),
         tone: 'warn',
       });
     }
 
+    const skipNode = mkNode(`[${combination.join(',')}]`, j !== i ? `skip ${candidates[i]} ×${j - i + 1}` : `skip ${candidates[i]}`);
+    skipNode.state = 'active';
+    node.children!.push(skipNode);
     r.step({
       at: 'dfs(candidates, target, i + 1, combination, sum);',
       explain: `Skip branch — continue after the duplicates.`,
       vars: { i: j + 1, sum },
-      visuals: view(Math.min(j + 1, candidates.length - 1), sum, 'muted'),
+      visuals: view(),
     });
-    dfs(j + 1, sum);
-    calls.pop();
+    dfs(j + 1, sum, skipNode);
+    if (skipNode.state === 'active') skipNode.state = 'done';
   };
 
-  dfs(0, 0);
+  dfs(0, 0, root);
   r.step({
     at: 'return res;',
     explain: `${res.length} combination(s), each unique.`,
-    visuals: [resultsViz('res', res.map((s) => `[${s.join(', ')}]`))],
+    visuals: view(),
     tone: 'success',
     result: `return [${res.map((s) => `[${s.join(',')}]`).join(', ')}]`,
   });

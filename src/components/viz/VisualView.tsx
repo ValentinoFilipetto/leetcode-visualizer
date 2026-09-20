@@ -1,6 +1,6 @@
 import type { Visual } from '../../types';
 import { ArrayView, BarsView, GridView, IntervalsView, MapView, StackView, TextView } from './primitives';
-import { GraphView, HeapView, ListView, TreeView } from './structures';
+import { DecisionTreeView, GraphView, HeapView, ListView, TreeView } from './structures';
 
 export function VisualView({ viz }: { viz: Visual }) {
   switch (viz.kind) {
@@ -20,6 +20,8 @@ export function VisualView({ viz }: { viz: Visual }) {
       return <IntervalsView viz={viz} />;
     case 'tree':
       return <TreeView viz={viz} />;
+    case 'decisionTree':
+      return <DecisionTreeView viz={viz} />;
     case 'heap':
       return <HeapView viz={viz} />;
     case 'list':

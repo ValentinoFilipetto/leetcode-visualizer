@@ -108,6 +108,30 @@ export interface TreeViz {
   note?: string;
 }
 
+/**
+ * The recursion tree of a backtracking search — one node per call, any number
+ * of children. Unlike TreeViz (which mirrors a binary-tree *input*), this
+ * renders the algorithm's own exploration: nodes accumulate as the DFS goes
+ * deeper and are colour-coded once their branch resolves, so the whole
+ * explored search space stays visible instead of being replaced step to step.
+ */
+export interface DecisionTreeNodeViz {
+  id: string;
+  /** What this node shows, e.g. the running sum or partial combination. */
+  label: string;
+  /** The choice that led here, drawn on the incoming edge, e.g. "+2" or "skip 5". */
+  edgeLabel?: string;
+  state?: CellState;
+  children?: DecisionTreeNodeViz[];
+}
+
+export interface DecisionTreeViz {
+  kind: 'decisionTree';
+  title?: string;
+  root: DecisionTreeNodeViz | null;
+  note?: string;
+}
+
 export interface GraphViz {
   kind: 'graph';
   title?: string;
@@ -171,6 +195,7 @@ export type Visual =
   | GridViz
   | ListViz
   | TreeViz
+  | DecisionTreeViz
   | GraphViz
   | StackViz
   | HeapViz

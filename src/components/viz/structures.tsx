@@ -1,4 +1,4 @@
-import type { GraphViz, HeapViz, ListViz, TreeNodeViz, TreeViz } from '../../types';
+import type { DecisionTreeNodeViz, DecisionTreeViz, GraphViz, HeapViz, ListViz, TreeNodeViz, TreeViz } from '../../types';
 import { stateClass } from './primitives';
 
 /* ── Binary tree ──────────────────────────────────────────────────────────── */
@@ -70,6 +70,116 @@ export function TreeView({ viz }: { viz: TreeViz }) {
                     {p.node.badge}
                   </text>
                 )}
+              </g>
+            ))}
+          </svg>
+        </div>
+      )}
+      {viz.note && <div className="viz-note">{viz.note}</div>}
+    </div>
+  );
+}
+
+/* ── Decision tree: a backtracking search's own recursion tree ───────────── */
+
+interface DPlaced {
+  node: DecisionTreeNodeViz;
+  x: number;
+  y: number;
+  w: number;
+  parent?: DPlaced;
+}
+
+const D_NODE_H = 28;
+const D_Y_GAP = 58;
+
+/** Wide enough for the label at 11px mono, capped so one huge label can't blow out the layout. */
+function decisionNodeWidth(label: string): number {
+  return Math.max(40, Math.min(150, label.length * 6.4 + 20));
+}
+
+/**
+ * Every leaf gets one horizontal slot (sized to the widest node anywhere in
+ * the tree, so nothing overlaps); an internal node centers over its children.
+ * The same idea as the binary-tree layout above, generalized to n children.
+ */
+function layoutDecisionTree(root: DecisionTreeNodeViz | null): { placed: DPlaced[]; width: number; height: number } {
+  if (!root) return { placed: [], width: 1, height: 1 };
+
+  let maxWidth = 40;
+  const measure = (node: DecisionTreeNodeViz) => {
+    maxWidth = Math.max(maxWidth, decisionNodeWidth(node.label));
+    (node.children ?? []).forEach(measure);
+  };
+  measure(root);
+  const slot = maxWidth + 24;
+
+  const placed: DPlaced[] = [];
+  let cursor = 0;
+  let maxDepth = 0;
+
+  const walk = (node: DecisionTreeNodeViz, depth: number, parent?: DPlaced): DPlaced => {
+    maxDepth = Math.max(maxDepth, depth);
+    const rec: DPlaced = { node, x: 0, y: depth * D_Y_GAP + D_NODE_H / 2 + 14, w: decisionNodeWidth(node.label), parent };
+    const kids = node.children ?? [];
+    if (kids.length === 0) {
+      rec.x = cursor * slot + slot / 2;
+      cursor++;
+    } else {
+      const childRecs = kids.map((c) => walk(c, depth + 1, rec));
+      rec.x = (Math.min(...childRecs.map((c) => c.x)) + Math.max(...childRecs.map((c) => c.x))) / 2;
+    }
+    placed.push(rec);
+    return rec;
+  };
+
+  walk(root, 0);
+  return { placed, width: Math.max(1, cursor) * slot + 16, height: (maxDepth + 1) * D_Y_GAP + 26 };
+}
+
+export function DecisionTreeView({ viz }: { viz: DecisionTreeViz }) {
+  const { placed, width, height } = layoutDecisionTree(viz.root);
+
+  return (
+    <div className="viz-block">
+      {viz.title && <div className="viz-title">{viz.title}</div>}
+      {!viz.root ? (
+        <div className="viz-empty">empty</div>
+      ) : (
+        <div className="svg-viz">
+          <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img">
+            {placed.map((p, i) => {
+              if (!p.parent) return null;
+              const mx = (p.parent.x + p.x) / 2;
+              const my = (p.parent.y + p.y) / 2 - 6;
+              const labelW = (p.node.edgeLabel?.length ?? 0) * 5.6 + 8;
+              return (
+                <g key={`e${i}`}>
+                  <line className="edge" x1={p.parent.x} y1={p.parent.y + D_NODE_H / 2} x2={p.x} y2={p.y - D_NODE_H / 2} />
+                  {p.node.edgeLabel && (
+                    <>
+                      <rect className="dtree-edge-label-bg" x={mx - labelW / 2} y={my - 8} width={labelW} height={13} rx={4} />
+                      <text className="edge-label" x={mx} y={my - 1}>
+                        {p.node.edgeLabel}
+                      </text>
+                    </>
+                  )}
+                </g>
+              );
+            })}
+            {placed.map((p, i) => (
+              <g key={`n${i}`}>
+                <rect
+                  className={`node-circle${stateClass(p.node.state)}`}
+                  x={p.x - p.w / 2}
+                  y={p.y - D_NODE_H / 2}
+                  width={p.w}
+                  height={D_NODE_H}
+                  rx={8}
+                />
+                <text className="node-text" x={p.x} y={p.y}>
+                  {p.node.label}
+                </text>
               </g>
             ))}
           </svg>

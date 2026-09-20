@@ -1123,6 +1123,10 @@ button {
   font-size: 9.5px;
   text-anchor: middle;
 }
+.dtree-edge-label-bg {
+  fill: var(--panel);
+  opacity: 0.92;
+}
 
 /* ── Intervals ────────────────────────────────────────────────────────────── */
 .intervals-viz {
