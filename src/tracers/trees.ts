@@ -437,7 +437,7 @@ function levelOrder(r: Recorder, values: (number | null)[], rightSideOnly = fals
 
     res.push(level);
     r.step({
-      at: rightSideOnly ? 'res.add(level.getLast());' : 'res.add(level);',
+      at: rightSideOnly ? 'res.add(level.get(level.size() - 1));' : 'res.add(level);',
       explain: rightSideOnly
         ? `From the right, only the last node of this level is visible: ${level[level.length - 1]}.`
         : `Level ${res.length - 1} is complete: [${level.join(', ')}].`,

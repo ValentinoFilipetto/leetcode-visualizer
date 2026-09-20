@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, chips, heap, list, mapOf } from './helpers';
+import { arr, chars, chips, heap, list, mapOf } from './helpers';
 
 /**
  * A textbook binary heap, so the array layout shown in the visuals matches what
@@ -258,7 +258,7 @@ function kClosest(r: Recorder, points: number[][], k: number) {
   const res: number[][] = [];
   while (h.size > 0) res.push(h.poll());
   r.step({
-    at: ['int[] point = maxHeap.poll();', 'res[i++] = point;'],
+    at: 'for (int i = 0; i < k; i++) res[i] = maxHeap.poll();',
     explain: `Drain the heap: the ${k} closest points, farthest first.`,
     visuals: [chips('res', res.map((p) => `(${p[0]}, ${p[1]})`))],
     tone: 'success',
@@ -402,6 +402,106 @@ function designTwitter(r: Recorder, ops: TwitterOp[]) {
   }
 }
 
+/* ── Task Scheduler ───────────────────────────────────────────────────────── */
+
+function taskScheduler(r: Recorder, tasksInput: string, n: number) {
+  const tasks = chars(tasksInput);
+  const count = new Array(26).fill(0);
+  for (const t of tasks) count[t.charCodeAt(0) - 65]++;
+  const letters = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
+
+  const h = maxHeap();
+  for (const c of count) if (c > 0) h.offer(c);
+
+  // Cooldown queue: pairs of [remaining count, time it becomes available again].
+  const q: [number, number][] = [];
+  let time = 0;
+
+  const heapLabel = (cnt: number) => `${cnt}×`;
+  const view = (state: CellState = 'active'): Visual[] => [
+    heap('maxHeap  (frequency of each task still available)', h.items.map(heapLabel), 'max', {
+      states: h.items.map((_, i) => (i === 0 ? state : undefined)),
+    }),
+    chips(
+      'cooldown queue  (count, available at)',
+      q.map(([cnt, at]) => `${cnt}× @t${at}`),
+      { emptyHint: '[]' },
+    ),
+  ];
+
+  r.step({
+    at: "for (char task : tasks) count[task - 'A']++;",
+    explain: `Count how often each task letter occurs: ${letters
+      .map((l, i) => (count[i] ? `${l}×${count[i]}` : null))
+      .filter(Boolean)
+      .join(', ')}.`,
+    vars: { n },
+    visuals: [arr(tasks, { title: 'tasks' })],
+  });
+
+  r.step({
+    at: 'for (int cnt : count) if (cnt > 0) maxHeap.add(cnt);',
+    explain:
+      'The most frequent remaining task is always the best one to run next — running it now buys the most time for its cooldown to expire elsewhere.',
+    visuals: view('window'),
+  });
+
+  while (h.size > 0 || q.length > 0) {
+    time++;
+
+    if (h.size === 0) {
+      const idleUntil = q[0][1];
+      r.step({
+        at: ['if (maxHeap.isEmpty()) {', 'time = q.peek()[1];'],
+        explain: `No task is currently available — every remaining task is cooling down, so jump straight to t${idleUntil}, the next moment anything can run, instead of ticking one idle slot at a time.`,
+        vars: { time: idleUntil },
+        visuals: view('idle'),
+        tone: 'warn',
+      });
+      time = idleUntil;
+    } else {
+      const cnt = h.poll() - 1;
+      r.step({
+        at: ['int cnt = maxHeap.poll() - 1;', 'if (cnt > 0) {'],
+        explain: `t${time}: run the most frequent available task (had count ${cnt + 1}, now ${cnt} left).`,
+        vars: { time, cnt },
+        visuals: view('success'),
+        tone: 'success',
+      });
+      if (cnt > 0) {
+        q.push([cnt, time + n]);
+        r.step({
+          at: 'q.add(new int[] { cnt, time + n });',
+          explain: `That task still has ${cnt} occurrence(s) left, so it goes into cooldown until t${time + n} = t${time} + n(${n}).`,
+          vars: { cnt, availableAt: time + n },
+          visuals: view('window'),
+        });
+      }
+    }
+
+    if (q.length > 0 && q[0][1] === time) {
+      const [cnt] = q.shift()!;
+      h.offer(cnt);
+      r.step({
+        at: ['if (!q.isEmpty() && q.peek()[1] == time) {', 'maxHeap.add(q.poll()[0]);'],
+        explain: `A task's cooldown just ended at t${time} — it rejoins the heap with ${cnt} occurrence(s) left.`,
+        vars: { time, cnt },
+        visuals: view('success'),
+        tone: 'success',
+      });
+    }
+  }
+
+  r.step({
+    at: 'return time;',
+    explain: `Every task has run; the schedule needed ${time} time unit(s), including any idle slots.`,
+    vars: { time },
+    visuals: view('idle'),
+    tone: 'success',
+    result: `return ${time}`,
+  });
+}
+
 /* ── Registry ─────────────────────────────────────────────────────────────── */
 
 export const heapTracers: Record<string, Tracer> = {
@@ -430,6 +530,12 @@ export const heapTracers: Record<string, Tracer> = {
     examples: [
       { label: 'k = 2', input: 'points = [[0,2],[-2,2],[3,3],[1,1]], k = 2', run: (r) => kClosest(r, [[0, 2], [-2, 2], [3, 3], [1, 1]], 2) },
       { label: 'k = 1', input: 'points = [[1,3],[-2,2]], k = 1', run: (r) => kClosest(r, [[1, 3], [-2, 2]], 1) },
+    ],
+  },
+  'medium/heaps/TaskScheduler': {
+    examples: [
+      { label: 'tasks = AAABBB, n = 2', input: 'tasks = ["A","A","A","B","B","B"], n = 2', run: (r) => taskScheduler(r, 'AAABBB', 2) },
+      { label: 'tasks = AAAAA, n = 2', input: 'tasks = ["A","A","A","A","A"], n = 2', run: (r) => taskScheduler(r, 'AAAAA', 2) },
     ],
   },
   'medium/heaps/DesignTwitter': {

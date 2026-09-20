@@ -29,7 +29,7 @@ function subsets(r: Recorder, nums: number[]) {
   ];
 
   r.step({
-    at: 'dfs(nums, 0, subset, res);',
+    at: 'dfs(nums, 0, new ArrayList<>(), res);',
     explain: 'Each element has exactly two fates: left out or taken. Walking that binary decision tree yields all 2ⁿ subsets.',
     visuals: view(0),
   });
@@ -49,18 +49,10 @@ function subsets(r: Recorder, nums: number[]) {
       return;
     }
 
-    r.step({
-      at: 'dfs(nums, i + 1, subset, res);@1',
-      explain: `Branch 1 — leave ${nums[i]} out.`,
-      vars: { i, 'nums[i]': nums[i], subset: list(subset) },
-      visuals: view(i, 'muted'),
-    });
-    dfs(i + 1);
-
     subset.push(nums[i]);
     r.step({
-      at: ['subset.add(nums[i]);', 'dfs(nums, i + 1, subset, res);@2'],
-      explain: `Branch 2 — take ${nums[i]}.`,
+      at: ['subset.add(nums[i]);', 'dfs(nums, i + 1, subset, res);@1'],
+      explain: `Branch 1 — take ${nums[i]}.`,
       vars: { i, 'nums[i]': nums[i], subset: list(subset) },
       visuals: view(i, 'success'),
     });
@@ -68,12 +60,21 @@ function subsets(r: Recorder, nums: number[]) {
 
     subset.pop();
     r.step({
-      at: 'subset.removeLast();',
-      explain: `Both branches for ${nums[i]} are explored — undo the choice so the caller sees the list exactly as it left it.`,
+      at: 'subset.remove(subset.size() - 1);',
+      explain: `Both descendants of taking ${nums[i]} are explored — undo the choice so the caller sees the list exactly as it left it.`,
       vars: { i, subset: list(subset) },
       visuals: view(i, 'compare'),
       tone: 'warn',
     });
+
+    r.step({
+      at: 'dfs(nums, i + 1, subset, res);@2',
+      explain: `Branch 2 — leave ${nums[i]} out.`,
+      vars: { i, 'nums[i]': nums[i], subset: list(subset) },
+      visuals: view(i, 'muted'),
+    });
+    dfs(i + 1);
+
     calls.pop();
   };
 
@@ -191,7 +192,7 @@ function combinationSum(r: Recorder, nums: number[], target: number) {
   ];
 
   r.step({
-    at: 'dfs(nums, 0, target, 0, new ArrayList<>(), res);',
+    at: 'dfs(nums, 0, target, 0, new ArrayList<>());',
     explain:
       'Each candidate may be reused, so "take" keeps the same index i while "skip" advances to i + 1. Carrying the running sum avoids re-adding the list each call.',
     vars: { target },
@@ -224,24 +225,24 @@ function combinationSum(r: Recorder, nums: number[], target: number) {
       return;
     }
 
+    combination.push(nums[i]);
     r.step({
-      at: ['// Option 1: skip nums[i].', 'dfs(nums, i + 1, target, sum, combination, res);'],
-      explain: `Option 1 — never use ${nums[i]} again in this branch.`,
+      at: ['combination.add(nums[i]);', 'dfs(nums, i, target, sum + nums[i], combination);'],
+      explain: `Option 1 — take ${nums[i]} and stay at the same index, so it can be taken again.`,
+      vars: { i, 'nums[i]': nums[i], sum: sum + nums[i] },
+      visuals: view(i, sum + nums[i], 'success'),
+    });
+    dfs(i, sum + nums[i]);
+    combination.pop();
+
+    r.step({
+      at: ['combination.remove(combination.size() - 1);', 'dfs(nums, i + 1,target, sum, combination);'],
+      explain: `Option 2 — never use ${nums[i]} again in this branch.`,
       vars: { i, 'nums[i]': nums[i], sum },
       visuals: view(i, sum, 'muted'),
     });
     dfs(i + 1, sum);
 
-    combination.push(nums[i]);
-    r.step({
-      at: ['combination.add(nums[i]);', 'dfs(nums, i, target, sum + nums[i], combination, res);'],
-      explain: `Option 2 — take ${nums[i]} and stay at the same index, so it can be taken again.`,
-      vars: { i, 'nums[i]': nums[i], sum: sum + nums[i] },
-      visuals: view(i, sum + nums[i], 'success'),
-    });
-    dfs(i, sum + nums[i]);
-
-    combination.pop();
     calls.pop();
   };
 
@@ -309,7 +310,7 @@ function combinationSumII(r: Recorder, input: number[], target: number) {
 
     combination.push(candidates[i]);
     r.step({
-      at: ['combination.add(candidates[i]);', 'dfs(candidates, i + 1, target, sum + candidates[i], combination, res);'],
+      at: ['combination.add(candidates[i]);', 'dfs(candidates, target, i + 1, combination, sum + candidates[i]);'],
       explain: `Take ${candidates[i]} and move to index ${i + 1} — one use only.`,
       vars: { i, sum: sum + candidates[i] },
       visuals: view(i, sum + candidates[i], 'success'),
@@ -321,7 +322,7 @@ function combinationSumII(r: Recorder, input: number[], target: number) {
     while (j < candidates.length - 1 && candidates[j] === candidates[j + 1]) j++;
     if (j !== i) {
       r.step({
-        at: 'while (i < candidates.length - 1 && candidates[i] == candidates[i + 1]) i++;',
+        at: 'while (i <  candidates.length  - 1 && candidates[i] == candidates[i + 1]) i++;',
         explain: `Skip the remaining copies of ${candidates[i]} (up to index ${j}) before the skip branch, otherwise the same combination would be built again with a different copy.`,
         vars: { i: j },
         visuals: view(j, sum, 'error'),
@@ -330,7 +331,7 @@ function combinationSumII(r: Recorder, input: number[], target: number) {
     }
 
     r.step({
-      at: 'dfs(candidates, i + 1, target, sum, combination, res);',
+      at: 'dfs(candidates, target, i + 1, combination, sum);',
       explain: `Skip branch — continue after the duplicates.`,
       vars: { i: j + 1, sum },
       visuals: view(Math.min(j + 1, candidates.length - 1), sum, 'muted'),
@@ -370,17 +371,17 @@ function permutations(r: Recorder, nums: number[]) {
   ];
 
   r.step({
-    at: 'dfs(nums, new ArrayList<>(), new boolean[nums.length]);',
+    at: 'backtrack(nums, new boolean[nums.length], new ArrayList<>());',
     explain: 'The boolean array records which values are already in the current permutation, so each level only picks from the free ones.',
     visuals: view(-1),
   });
 
   const dfs = () => {
-    calls.push(`dfs([${permutation.join(',')}])`);
+    calls.push(`backtrack([${permutation.join(',')}])`);
     if (permutation.length === nums.length) {
       res.push(permutation.slice());
       r.step({
-        at: ['if (permutation.size() == nums.length) {', 'res.add(new ArrayList<>(permutation));'],
+        at: ['if (perm.size() == nums.length) {', 'res.add(new ArrayList<>(perm));'],
         explain: `All ${nums.length} values are used — [${permutation.join(', ')}] is a complete permutation.`,
         vars: { permutation: list(permutation) },
         visuals: view(-1, 'done'),
@@ -392,10 +393,10 @@ function permutations(r: Recorder, nums: number[]) {
 
     for (let i = 0; i < nums.length; i++) {
       if (pick[i]) continue;
-      pick[i] = true;
       permutation.push(nums[i]);
+      pick[i] = true;
       r.step({
-        at: ['pick[i] = true;', 'permutation.add(nums[i]);'],
+        at: ['perm.add(nums[i]);', 'pick[i] = true;'],
         explain: `Place ${nums[i]} at position ${permutation.length - 1}.`,
         vars: { i, permutation: list(permutation) },
         visuals: view(i, 'success'),
@@ -404,7 +405,7 @@ function permutations(r: Recorder, nums: number[]) {
       permutation.pop();
       pick[i] = false;
       r.step({
-        at: ['permutation.removeLast();', 'pick[i] = false;'],
+        at: ['perm.remove(perm.size() - 1);', 'pick[i] = false;'],
         explain: `Backtrack: free ${nums[i]} again so other branches can use it.`,
         vars: { i, permutation: list(permutation) },
         visuals: view(i, 'compare'),
@@ -712,6 +713,77 @@ function wordSearch(r: Recorder, input: string[][], word: string) {
   });
 }
 
+/* ── Sum of All Subsets' XOR Total ────────────────────────────────────────── */
+
+function subsetXORSum(r: Recorder, nums: number[]) {
+  let res = 0;
+  const calls: string[] = [];
+  const leaves: string[] = [];
+
+  const view = (i: number, xor: number, state: CellState = 'active'): Visual[] => [
+    arr(nums, {
+      title: 'nums',
+      states: nums.map((_, k) => (k === i ? state : k < i ? ('visited' as CellState) : undefined)),
+      pointers: i < nums.length ? [{ name: 'i', index: i }] : [],
+      note: `running xor: ${xor}`,
+    }),
+    frames('call stack', calls.slice().reverse()),
+    chips('leaf totals (xor of each subset)', leaves, { emptyHint: '[]' }),
+  ];
+
+  r.step({
+    at: 'int res = 0;',
+    explain:
+      'Every subset is a path through the same binary decision tree as Subsets: include nums[i] in the running xor, or leave it out. A leaf is reached once all n elements are decided, and its xor is added to the total.',
+    visuals: view(0, 0, 'idle'),
+  });
+
+  const dfs = (i: number, xor: number) => {
+    calls.push(`dfs(i=${i}, xor=${xor})`);
+    if (i === nums.length) {
+      res += xor;
+      leaves.push(`${xor}`);
+      r.step({
+        at: ['res += xor;', 'return;'],
+        explain: `Every element has been decided — this subset's xor is ${xor}, added to the running total (now ${res}).`,
+        vars: { i, xor, res },
+        visuals: view(i, xor, 'success'),
+        tone: 'success',
+      });
+      calls.pop();
+      return;
+    }
+
+    r.step({
+      at: 'dfs(nums, i + 1, xor ^ nums[i]);',
+      explain: `Include nums[${i}] = ${nums[i]}: xor becomes ${xor} ^ ${nums[i]} = ${xor ^ nums[i]}.`,
+      vars: { i, 'nums[i]': nums[i], xor: xor ^ nums[i] },
+      visuals: view(i, xor, 'success'),
+    });
+    dfs(i + 1, xor ^ nums[i]);
+
+    r.step({
+      at: 'dfs(nums, i + 1, xor);',
+      explain: `Leave nums[${i}] = ${nums[i]} out: xor stays ${xor}.`,
+      vars: { i, 'nums[i]': nums[i], xor },
+      visuals: view(i, xor, 'muted'),
+    });
+    dfs(i + 1, xor);
+
+    calls.pop();
+  };
+
+  dfs(0, 0);
+  r.step({
+    at: 'return res;',
+    explain: `Summing the xor of every one of the 2^${nums.length} subsets gives ${res}.`,
+    vars: { res },
+    visuals: [chips('leaf totals (xor of each subset)', leaves, { emptyHint: '[]' })],
+    tone: 'success',
+    result: `return ${res}`,
+  });
+}
+
 /* ── Registry ─────────────────────────────────────────────────────────────── */
 
 export const backtrackingTracers: Record<string, Tracer> = {
@@ -787,6 +859,12 @@ export const backtrackingTracers: Record<string, Tracer> = {
             'ABCB',
           ),
       },
+    ],
+  },
+  'medium/backtracking/SumOfAllSubsetsXORTotal': {
+    examples: [
+      { label: 'nums = [1,3]', input: 'nums = [1, 3]', run: (r) => subsetXORSum(r, [1, 3]) },
+      { label: 'nums = [5,1,6]', input: 'nums = [5, 1, 6]', run: (r) => subsetXORSum(r, [5, 1, 6]) },
     ],
   },
 };

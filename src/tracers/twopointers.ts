@@ -22,7 +22,7 @@ function validPalindrome(r: Recorder, s: string) {
   let l = 0;
   let rr = cs.length - 1;
   r.step({
-    at: 'int l = 0, r = s.length() - 1;',
+    at: 'int left = 0, right = s.length() - 1;',
     explain: 'One pointer at each end; they walk towards each other comparing characters.',
     vars: { l, r: rr },
     visuals: view(l, rr),
@@ -31,7 +31,7 @@ function validPalindrome(r: Recorder, s: string) {
   while (l < rr) {
     while (l < rr && !isAlphaNum(cs[l])) {
       r.step({
-        at: 'while (l < r && !isAlphaNum(s.charAt(l))) l++;',
+        at: 'while (left < right && !isAlphaNum(s.charAt(left))) left++;',
         explain: `'${cs[l]}' is not a letter or digit, so the left pointer skips it.`,
         vars: { l, r: rr, 's.charAt(l)': cs[l] },
         visuals: view(l, rr, at(cs.length, [l], 'muted')),
@@ -40,7 +40,7 @@ function validPalindrome(r: Recorder, s: string) {
     }
     while (rr > l && !isAlphaNum(cs[rr])) {
       r.step({
-        at: 'while (r > l && !isAlphaNum(s.charAt(r))) r--;',
+        at: 'while (right > left && !isAlphaNum(s.charAt(right))) right--;',
         explain: `'${cs[rr]}' is not a letter or digit, so the right pointer skips it.`,
         vars: { l, r: rr, 's.charAt(r)': cs[rr] },
         visuals: view(l, rr, at(cs.length, [rr], 'muted')),
@@ -53,7 +53,7 @@ function validPalindrome(r: Recorder, s: string) {
     const b = cs[rr].toLowerCase();
     if (a !== b) {
       r.step({
-        at: 'if (Character.toLowerCase(s.charAt(l)) != Character.toLowerCase(s.charAt(r)))',
+        at: 'if (Character.toLowerCase(s.charAt(left)) != Character.toLowerCase(s.charAt(right)))@1',
         explain: `'${a}' ≠ '${b}' — the string cannot be a palindrome.`,
         vars: { l, r: rr, left: a, right: b },
         visuals: view(l, rr, at(cs.length, [l, rr], 'error')),
@@ -64,7 +64,7 @@ function validPalindrome(r: Recorder, s: string) {
     }
 
     r.step({
-      at: ['if (Character.toLowerCase(s.charAt(l)) != Character.toLowerCase(s.charAt(r)))', 'l++; r--;'],
+      at: ['if (Character.toLowerCase(s.charAt(left)) != Character.toLowerCase(s.charAt(right)))@1', 'left++; right--;'],
       explain: `'${a}' matches '${b}'. Move both pointers inwards.`,
       vars: { l, r: rr, left: a, right: b },
       visuals: view(l, rr, at(cs.length, [l, rr], 'success')),
@@ -736,6 +736,144 @@ function trap(r: Recorder, height: number[]) {
   });
 }
 
+/* ── Merge Sorted Array ───────────────────────────────────────────────────── */
+
+function mergeSortedArrays(r: Recorder, nums1Input: number[], m: number, nums2: number[], n: number) {
+  const nums1 = nums1Input.slice();
+  let last = m + n - 1;
+  let mm = m;
+  let nn = n;
+
+  const view = (state: CellState = 'active'): Visual[] => [
+    arr(nums1, {
+      title: 'nums1  (has room for m + n values)',
+      states: nums1.map((_, i) => (i === last ? state : i >= mm + nn && i <= m + n - 1 ? ('muted' as CellState) : i < mm ? ('window' as CellState) : undefined)),
+      pointers: [
+        { name: 'm', index: Math.max(0, mm - 1), tone: 3 },
+        { name: 'last', index: Math.max(0, last), tone: 2 },
+      ],
+    }),
+    arr(nums2, {
+      title: 'nums2',
+      states: nums2.map((_, i) => (i === nn - 1 ? ('active' as CellState) : i < nn ? ('window' as CellState) : ('muted' as CellState))),
+      pointers: nn > 0 ? [{ name: 'n', index: nn - 1 }] : [],
+    }),
+  ];
+
+  r.step({
+    at: 'int last = m + n - 1;',
+    explain:
+      'Merge from the back: the tail of nums1 is empty space, so writing there first never overwrites a value that is still needed.',
+    vars: { m, n, last },
+    visuals: view('idle'),
+  });
+
+  while (mm > 0 && nn > 0) {
+    if (nums1[mm - 1] > nums2[nn - 1]) {
+      nums1[last] = nums1[mm - 1];
+      r.step({
+        at: ['if (nums1[m - 1] > nums2[n - 1]) {', 'nums1[last] = nums1[m - 1];', 'm--;'],
+        explain: `${nums1[mm - 1]} (nums1) > ${nums2[nn - 1]} (nums2) — the larger value goes at index ${last}.`,
+        vars: { m: mm, n: nn, last },
+        visuals: view('success'),
+      });
+      mm--;
+    } else {
+      nums1[last] = nums2[nn - 1];
+      r.step({
+        at: ['} else {', 'nums1[last] = nums2[n - 1];@1', 'n--;@1'],
+        explain: `${nums2[nn - 1]} (nums2) ≥ ${nums1[mm - 1]} (nums1) — it goes at index ${last}.`,
+        vars: { m: mm, n: nn, last },
+        visuals: view('compare'),
+      });
+      nn--;
+    }
+    last--;
+  }
+
+  r.step({
+    at: 'while (n > 0) {',
+    explain:
+      nn > 0
+        ? `nums1 ran out of unmerged values, but nums2 still has ${nn} left — copy them straight across, they are already in place relative to each other.`
+        : 'Every remaining value in nums1 is already exactly where it belongs, so nothing further is needed.',
+    vars: { m: mm, n: nn, last },
+    visuals: view('idle'),
+  });
+
+  while (nn > 0) {
+    nums1[last] = nums2[nn - 1];
+    r.step({
+      at: 'nums1[last] = nums2[n - 1];@2',
+      explain: `Copy ${nums2[nn - 1]} into index ${last}.`,
+      vars: { n: nn, last },
+      visuals: view('success'),
+    });
+    nn--;
+    last--;
+  }
+
+  r.step({
+    at: 'public void merge(int[] nums1, int m, int[] nums2, int n) {',
+    explain: 'nums1 now holds all m + n values in sorted order.',
+    visuals: [arr(nums1, { title: 'nums1', states: nums1.map(() => 'success' as CellState) })],
+    tone: 'success',
+    result: `nums1 = ${list(nums1)}`,
+  });
+}
+
+/* ── Reverse String ───────────────────────────────────────────────────────── */
+
+function reverseString(r: Recorder, input: string) {
+  const s = chars(input);
+  let left = 0;
+  let right = s.length - 1;
+
+  const view = (state: CellState = 'active'): Visual[] => [
+    arr(s, {
+      title: 's',
+      states: s.map((_, i) => (i === left || i === right ? state : i < left || i > right ? ('success' as CellState) : undefined)),
+      pointers: [
+        { name: 'left', index: left },
+        { name: 'right', index: right, tone: 2 },
+      ],
+    }),
+  ];
+
+  r.step({
+    at: 'int left = 0, right = s.length - 1;',
+    explain: 'Swap the outer characters and walk both pointers inward, in place — no second array needed.',
+    vars: { left, right },
+    visuals: view('idle'),
+  });
+
+  while (left < right) {
+    [s[left], s[right]] = [s[right], s[left]];
+    r.step({
+      at: ['char tmp = s[left];', 's[left] = s[right];', 's[right] = tmp;'],
+      explain: `Swap s[${left}] and s[${right}].`,
+      vars: { left, right },
+      visuals: view('active'),
+    });
+    left++;
+    right--;
+    r.step({
+      at: ['left++;', 'right--;'],
+      explain: left <= right ? `Move both pointers inward: left = ${left}, right = ${right}.` : 'The pointers have met or crossed — every pair has been swapped.',
+      vars: { left, right },
+      visuals: view('compare'),
+    });
+  }
+
+  r.step({
+    at: 'public void reverseString(char[] s) {',
+    explain: 'The string is fully reversed in place.',
+    visuals: [arr(s, { title: 's', states: s.map(() => 'success' as CellState) })],
+    tone: 'success',
+    result: `s = [${s.map((c) => `'${c}'`).join(', ')}]`,
+  });
+}
+
 /* ── Registry ─────────────────────────────────────────────────────────────── */
 
 export const twoPointerTracers: Record<string, Tracer> = {
@@ -768,6 +906,26 @@ export const twoPointerTracers: Record<string, Tracer> = {
     examples: [
       { label: 'nums = [1,2,3,4,5,6,7], k = 3', input: 'nums = [1, 2, 3, 4, 5, 6, 7], k = 3', run: (r) => rotateArray(r, [1, 2, 3, 4, 5, 6, 7], 3) },
       { label: 'k larger than n', input: 'nums = [1, 2, 3, 4], k = 6', run: (r) => rotateArray(r, [1, 2, 3, 4], 6) },
+    ],
+  },
+  'easy/twopointers/MergeSortedArrays': {
+    examples: [
+      {
+        label: 'nums1 = [1,2,3,0,0,0], nums2 = [2,5,6]',
+        input: 'nums1 = [1, 2, 3, 0, 0, 0], m = 3, nums2 = [2, 5, 6], n = 3',
+        run: (r) => mergeSortedArrays(r, [1, 2, 3, 0, 0, 0], 3, [2, 5, 6], 3),
+      },
+      {
+        label: 'nums1 empty at the start',
+        input: 'nums1 = [0, 0], m = 0, nums2 = [1, 2], n = 2',
+        run: (r) => mergeSortedArrays(r, [0, 0], 0, [1, 2], 2),
+      },
+    ],
+  },
+  'easy/twopointers/ReverseString': {
+    examples: [
+      { label: 's = "hello"', input: 's = ["h","e","l","l","o"]', run: (r) => reverseString(r, 'hello') },
+      { label: 's = "abcd"', input: 's = ["a","b","c","d"]', run: (r) => reverseString(r, 'abcd') },
     ],
   },
   'medium/twopointers/TwoSumII': {
