@@ -364,38 +364,34 @@ function permutations(r: Recorder, nums: number[]) {
   const res: number[][] = [];
   const permutation: number[] = [];
   const pick = new Array(nums.length).fill(false);
-  const calls: string[] = [];
+  let uid = 0;
+  const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `pm${uid++}`, label, edgeLabel, children: [] });
+  const root = mkNode('[]');
 
-  const view = (i: number, state: CellState = 'active'): Visual[] => [
-    arr(nums, {
-      title: 'nums',
-      states: nums.map((_, k) => (k === i ? state : pick[k] ? ('success' as CellState) : undefined)),
-      labels: nums.map((_, k) => (pick[k] ? 'used' : 'free')),
-      indexed: false,
-    }),
-    arr(permutation, { title: 'permutation', states: permutation.map(() => 'window' as CellState) }),
-    frames('call stack', calls.slice().reverse()),
+  const view = (): Visual[] => [
+    decisionTree(root, { title: 'decision tree  (one child per still-unused value)' }),
     resultsViz('res', res.map((s) => `[${s.join(', ')}]`)),
   ];
 
   r.step({
     at: 'backtrack(nums, new boolean[nums.length], new ArrayList<>());',
-    explain: 'The boolean array records which values are already in the current permutation, so each level only picks from the free ones.',
-    visuals: view(-1),
+    explain:
+      'The boolean array records which values are already in the current permutation, so each node branches into one child per still-unused value — up to n children, not just two.',
+    visuals: view(),
   });
 
-  const dfs = () => {
-    calls.push(`backtrack([${permutation.join(',')}])`);
+  const dfs = (node: DecisionTreeNodeViz) => {
     if (permutation.length === nums.length) {
       res.push(permutation.slice());
+      node.label = `[${permutation.join(',')}] ✓`;
+      node.state = 'success';
       r.step({
         at: ['if (perm.size() == nums.length) {', 'res.add(new ArrayList<>(perm));'],
         explain: `All ${nums.length} values are used — [${permutation.join(', ')}] is a complete permutation.`,
         vars: { permutation: list(permutation) },
-        visuals: view(-1, 'done'),
+        visuals: view(),
         tone: 'success',
       });
-      calls.pop();
       return;
     }
 
@@ -403,31 +399,34 @@ function permutations(r: Recorder, nums: number[]) {
       if (pick[i]) continue;
       permutation.push(nums[i]);
       pick[i] = true;
+      const child = mkNode(`[${permutation.join(',')}]`, `+${nums[i]}`);
+      child.state = 'active';
+      node.children!.push(child);
       r.step({
         at: ['perm.add(nums[i]);', 'pick[i] = true;'],
         explain: `Place ${nums[i]} at position ${permutation.length - 1}.`,
         vars: { i, permutation: list(permutation) },
-        visuals: view(i, 'success'),
+        visuals: view(),
       });
-      dfs();
+      dfs(child);
+      if (child.state === 'active') child.state = 'done';
       permutation.pop();
       pick[i] = false;
       r.step({
         at: ['perm.remove(perm.size() - 1);', 'pick[i] = false;'],
         explain: `Backtrack: free ${nums[i]} again so other branches can use it.`,
         vars: { i, permutation: list(permutation) },
-        visuals: view(i, 'compare'),
+        visuals: view(),
         tone: 'warn',
       });
     }
-    calls.pop();
   };
 
-  dfs();
+  dfs(root);
   r.step({
     at: 'return res;',
     explain: `${res.length} permutations = ${nums.length}!.`,
-    visuals: [resultsViz('res', res.map((s) => `[${s.join(', ')}]`))],
+    visuals: view(),
     tone: 'success',
     result: `return ${res.length} permutations`,
   });
