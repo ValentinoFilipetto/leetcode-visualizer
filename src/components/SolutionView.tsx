@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Recorder } from '../trace/recorder';
 import type { Solution, Step, Tracer } from '../types';
 import { CodePanel } from './CodePanel';
+import { IconMaximize, IconMinimize } from './icons';
 import { Player } from './Player';
 import { VisualView } from './viz/VisualView';
 
@@ -26,6 +27,7 @@ export function SolutionView({ solution, tracer }: { solution: Solution; tracer:
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(800);
+  const [maximized, setMaximized] = useState(false);
   const timer = useRef<number>();
 
   const { steps, input } = useMemo(
@@ -38,6 +40,10 @@ export function SolutionView({ solution, tracer }: { solution: Solution; tracer:
     setIndex(0);
     setPlaying(false);
   }, [solution.id, exampleIndex]);
+
+  useEffect(() => {
+    setMaximized(false);
+  }, [solution.id]);
 
   useEffect(() => {
     setExampleIndex(0);
@@ -65,6 +71,10 @@ export function SolutionView({ solution, tracer }: { solution: Solution; tracer:
         if (e.key === 'Escape') target.blur();
         return;
       }
+      if (e.key === 'Escape' && maximized) {
+        setMaximized(false);
+        return;
+      }
       if (e.key === 'ArrowRight') {
         e.preventDefault();
         seek(index + 1);
@@ -88,7 +98,7 @@ export function SolutionView({ solution, tracer }: { solution: Solution; tracer:
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [index, steps.length]);
+  }, [index, steps.length, maximized]);
 
   const step: Step | undefined = steps[index];
 
@@ -113,6 +123,68 @@ export function SolutionView({ solution, tracer }: { solution: Solution; tracer:
     );
   }
 
+  const playerNode = (
+    <Player
+      index={index}
+      total={steps.length}
+      playing={playing}
+      speed={speed}
+      onSeek={seek}
+      onTogglePlay={() => setPlaying((p) => !p)}
+      onSpeed={setSpeed}
+      onRestart={() => {
+        setIndex(0);
+        setPlaying(true);
+      }}
+    />
+  );
+
+  const vizPanel = (
+    <div className={`panel viz-panel${maximized ? ' maximized' : ''}`}>
+      <div className="panel-head">
+        <span>Visualization</span>
+        <span className="spacer" />
+        <span style={{ textTransform: 'none', letterSpacing: 0 }}>{solution.pattern}</span>
+        <button
+          className="icon-btn"
+          onClick={() => setMaximized((m) => !m)}
+          title={maximized ? 'Exit full screen (Esc)' : 'Full screen'}
+        >
+          {maximized ? <IconMinimize /> : <IconMaximize />}
+        </button>
+      </div>
+
+      <div className="stage-scroll">
+        {step?.visuals.map((viz, i) => (
+          <VisualView viz={viz} key={`${index}-${i}-${viz.kind}`} />
+        ))}
+      </div>
+
+      {step?.vars && Object.keys(step.vars).length > 0 && (
+        <div className="vars-bar">
+          {Object.entries(step.vars).map(([name, value]) => (
+            <span className="var-pill" key={name}>
+              <span className="var-name">{name}</span>
+              <span className="var-value">{value === undefined ? '—' : String(value)}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className={`explain-bar ${step?.tone ?? 'neutral'}`}>
+        <span className="explain-icon">
+          {step?.tone === 'success' ? '✓' : step?.tone === 'error' ? '✕' : step?.tone === 'warn' ? '!' : '›'}
+        </span>
+        <div>
+          <div className="explain-text">{step?.explain}</div>
+          {step?.result && <div className={`result-banner ${step.tone ?? 'neutral'}`}>{step.result}</div>}
+        </div>
+      </div>
+
+      {maximized && playerNode}
+    </div>
+  );
+
   return (
     <>
       <div className="input-line">
@@ -136,56 +208,11 @@ export function SolutionView({ solution, tracer }: { solution: Solution; tracer:
 
       <div className="workspace">
         <CodePanel code={solution.code} activeLines={step?.lines ?? []} />
-
-        <div className="panel">
-          <div className="panel-head">
-            <span>Visualization</span>
-            <span className="spacer" />
-            <span style={{ textTransform: 'none', letterSpacing: 0 }}>{solution.pattern}</span>
-          </div>
-
-          <div className="stage-scroll">
-            {step?.visuals.map((viz, i) => (
-              <VisualView viz={viz} key={`${index}-${i}-${viz.kind}`} />
-            ))}
-          </div>
-
-          {step?.vars && Object.keys(step.vars).length > 0 && (
-            <div className="vars-bar">
-              {Object.entries(step.vars).map(([name, value]) => (
-                <span className="var-pill" key={name}>
-                  <span className="var-name">{name}</span>
-                  <span className="var-value">{value === undefined ? '—' : String(value)}</span>
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div className={`explain-bar ${step?.tone ?? 'neutral'}`}>
-            <span className="explain-icon">
-              {step?.tone === 'success' ? '✓' : step?.tone === 'error' ? '✕' : step?.tone === 'warn' ? '!' : '›'}
-            </span>
-            <div>
-              <div className="explain-text">{step?.explain}</div>
-              {step?.result && <div className={`result-banner ${step.tone ?? 'neutral'}`}>{step.result}</div>}
-            </div>
-          </div>
-        </div>
+        {vizPanel}
       </div>
 
-      <Player
-        index={index}
-        total={steps.length}
-        playing={playing}
-        speed={speed}
-        onSeek={seek}
-        onTogglePlay={() => setPlaying((p) => !p)}
-        onSpeed={setSpeed}
-        onRestart={() => {
-          setIndex(0);
-          setPlaying(true);
-        }}
-      />
+      {maximized && <div className="scrim viz-scrim" onClick={() => setMaximized(false)} />}
+      {!maximized && playerNode}
     </>
   );
 }

@@ -423,6 +423,30 @@ button {
   flex: 1;
 }
 
+.viz-panel.maximized {
+  position: fixed;
+  inset: 20px;
+  z-index: 200;
+  box-shadow: var(--shadow);
+  animation: viz-pop-in 0.16s var(--ease);
+}
+.viz-scrim {
+  z-index: 190;
+}
+
+@keyframes viz-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@media (max-width: 640px) {
+  .viz-panel.maximized {
+    inset: 8px;
+  }
+}
+
 /* ── Code panel ───────────────────────────────────────────────────────────── */
 .code-scroll {
   overflow: auto;

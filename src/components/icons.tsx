@@ -84,3 +84,15 @@ export const IconRepeat = () => (
     <path d="M18 3v4h-4M6 21v-4h4" />
   </svg>
 );
+
+export const IconMaximize = () => (
+  <svg {...base} width={15} height={15}>
+    <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />
+  </svg>
+);
+
+export const IconMinimize = () => (
+  <svg {...base} width={15} height={15}>
+    <path d="M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5" />
+  </svg>
+);
