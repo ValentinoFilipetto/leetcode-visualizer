@@ -534,19 +534,12 @@ const KEYPAD: Record<string, string[]> = {
 function letterCombinations(r: Recorder, digits: string) {
   const res: string[] = [];
   const combination: string[] = [];
-  const calls: string[] = [];
+  let uid = 0;
+  const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `lc${uid++}`, label, edgeLabel, children: [] });
+  const root = mkNode('""');
 
-  const view = (i: number, state: CellState = 'active'): Visual[] => [
-    arr(chars(digits), {
-      title: 'digits',
-      states: chars(digits).map((_, k) => (k === i ? state : k < i ? ('visited' as CellState) : undefined)),
-      pointers: i < digits.length ? [{ name: 'i', index: i }] : [],
-    }),
-    ...(i < digits.length
-      ? [arr(KEYPAD[digits[i]] ?? [], { title: `KEYPAD['${digits[i]}']`, indexed: false })]
-      : []),
-    arr(combination, { title: 'combination', states: combination.map(() => 'window' as CellState), indexed: false }),
-    frames('call stack', calls.slice().reverse()),
+  const view = (): Visual[] => [
+    decisionTree(root, { title: 'decision tree  (one child per letter on the current digit)' }),
     resultsViz('res', res.map((x) => `"${x}"`)),
   ];
 
@@ -563,51 +556,54 @@ function letterCombinations(r: Recorder, digits: string) {
 
   r.step({
     at: 'backtracking(0, digits, new StringBuilder());',
-    explain: 'One recursion level per digit; the loop inside tries every letter on that key.',
-    visuals: view(0),
+    explain: 'One recursion level per digit; the loop inside tries every letter on that key, so each node fans out into up to 4 children.',
+    visuals: view(),
   });
 
-  const backtracking = (i: number) => {
-    calls.push(`backtracking(i=${i})`);
+  const backtracking = (i: number, node: DecisionTreeNodeViz) => {
     if (i === digits.length) {
       res.push(combination.join(''));
+      node.label = `"${combination.join('')}" ✓`;
+      node.state = 'success';
       r.step({
         at: ['if (i == digits.length()) {', 'res.add(combination.toString());'],
         explain: `Every digit has a letter: "${combination.join('')}".`,
         vars: { combination: `"${combination.join('')}"` },
-        visuals: view(i, 'done'),
+        visuals: view(),
         tone: 'success',
       });
-      calls.pop();
       return;
     }
 
     for (const ch of KEYPAD[digits[i]]) {
       combination.push(ch);
+      const child = mkNode(`"${combination.join('')}"`, `${digits[i]}→${ch}`);
+      child.state = 'active';
+      node.children!.push(child);
       r.step({
         at: ['combination.append(character);', 'backtracking(i + 1, digits, combination);'],
         explain: `Digit '${digits[i]}' → try '${ch}'.`,
         vars: { i, character: ch, combination: `"${combination.join('')}"` },
-        visuals: view(i, 'active'),
+        visuals: view(),
       });
-      backtracking(i + 1);
+      backtracking(i + 1, child);
+      if (child.state === 'active') child.state = 'done';
       combination.pop();
       r.step({
         at: 'combination.deleteCharAt(combination.length() - 1);',
         explain: `Remove '${ch}' again — a StringBuilder is mutable, so the undo has to be explicit.`,
         vars: { i, combination: `"${combination.join('')}"` },
-        visuals: view(i, 'compare'),
+        visuals: view(),
         tone: 'warn',
       });
     }
-    calls.pop();
   };
 
-  backtracking(0);
+  backtracking(0, root);
   r.step({
     at: 'return res;@2',
     explain: `${res.length} combinations.`,
-    visuals: [resultsViz('res', res.map((x) => `"${x}"`))],
+    visuals: view(),
     tone: 'success',
     result: `return [${res.map((x) => `"${x}"`).join(', ')}]`,
   });
