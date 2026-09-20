@@ -15,74 +15,75 @@ function resultsViz(title: string, items: string[]): TextViz {
 function subsets(r: Recorder, nums: number[]) {
   const res: number[][] = [];
   const subset: number[] = [];
-  const calls: string[] = [];
+  let uid = 0;
+  const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `ss${uid++}`, label, edgeLabel, children: [] });
+  const root = mkNode('[]');
 
-  const view = (i: number, state: CellState = 'active'): Visual[] => [
-    arr(nums, {
-      title: 'nums',
-      states: nums.map((_, k) => (k === i ? state : subset.includes(nums[k]) && k < i ? ('success' as CellState) : k < i ? ('muted' as CellState) : undefined)),
-      pointers: i < nums.length ? [{ name: 'i', index: i }] : [],
-    }),
-    arr(subset, { title: 'subset  (current branch)', states: subset.map(() => 'window' as CellState) }),
-    frames('call stack', calls.slice().reverse()),
+  const view = (): Visual[] => [
+    decisionTree(root, { title: 'decision tree  (take nums[i] then leave it out, per node)' }),
     resultsViz('res', res.map((s) => `[${s.join(', ')}]`)),
   ];
 
   r.step({
     at: 'dfs(nums, 0, new ArrayList<>(), res);',
-    explain: 'Each element has exactly two fates: left out or taken. Walking that binary decision tree yields all 2ⁿ subsets.',
-    visuals: view(0),
+    explain: 'Each element has exactly two fates: taken or left out. Walking that binary decision tree yields all 2ⁿ subsets — one leaf per subset.',
+    visuals: view(),
   });
 
-  const dfs = (i: number) => {
-    calls.push(`dfs(i=${i}, subset=[${subset.join(',')}])`);
+  const dfs = (i: number, node: DecisionTreeNodeViz) => {
     if (i === nums.length) {
       res.push(subset.slice());
+      node.label = `[${subset.join(',')}] ✓`;
+      node.state = 'success';
       r.step({
         at: ['if (i == nums.length) {', 'res.add(new ArrayList<>(subset));'],
         explain: `Every element has been decided — record a copy of [${subset.join(', ')}]. The copy matters: the list itself keeps mutating.`,
         vars: { i, subset: list(subset) },
-        visuals: view(i, 'done'),
+        visuals: view(),
         tone: 'success',
       });
-      calls.pop();
       return;
     }
 
     subset.push(nums[i]);
+    const takeNode = mkNode(`[${subset.join(',')}]`, `+${nums[i]}`);
+    takeNode.state = 'active';
+    node.children!.push(takeNode);
     r.step({
       at: ['subset.add(nums[i]);', 'dfs(nums, i + 1, subset, res);@1'],
       explain: `Branch 1 — take ${nums[i]}.`,
       vars: { i, 'nums[i]': nums[i], subset: list(subset) },
-      visuals: view(i, 'success'),
+      visuals: view(),
     });
-    dfs(i + 1);
-
+    dfs(i + 1, takeNode);
+    if (takeNode.state === 'active') takeNode.state = 'done';
     subset.pop();
+
+    const skipNode = mkNode(`[${subset.join(',')}]`, `skip ${nums[i]}`);
+    skipNode.state = 'active';
+    node.children!.push(skipNode);
     r.step({
       at: 'subset.remove(subset.size() - 1);',
-      explain: `Both descendants of taking ${nums[i]} are explored — undo the choice so the caller sees the list exactly as it left it.`,
+      explain: `Both descendants of taking ${nums[i]} are explored — undo the choice, then also try leaving ${nums[i]} out entirely.`,
       vars: { i, subset: list(subset) },
-      visuals: view(i, 'compare'),
+      visuals: view(),
       tone: 'warn',
     });
-
     r.step({
       at: 'dfs(nums, i + 1, subset, res);@2',
       explain: `Branch 2 — leave ${nums[i]} out.`,
       vars: { i, 'nums[i]': nums[i], subset: list(subset) },
-      visuals: view(i, 'muted'),
+      visuals: view(),
     });
-    dfs(i + 1);
-
-    calls.pop();
+    dfs(i + 1, skipNode);
+    if (skipNode.state === 'active') skipNode.state = 'done';
   };
 
-  dfs(0);
+  dfs(0, root);
   r.step({
     at: 'return res;',
     explain: `${res.length} subsets = 2^${nums.length}.`,
-    visuals: [resultsViz('res', res.map((s) => `[${s.join(', ')}]`))],
+    visuals: view(),
     tone: 'success',
     result: `return ${res.length} subsets`,
   });
@@ -94,48 +95,48 @@ function subsetsII(r: Recorder, input: number[]) {
   const nums = input.slice().sort((a, b) => a - b);
   const res: number[][] = [];
   const subset: number[] = [];
-  const calls: string[] = [];
+  let uid = 0;
+  const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `ss2_${uid++}`, label, edgeLabel, children: [] });
+  const root = mkNode('[]');
 
-  const view = (i: number, state: CellState = 'active'): Visual[] => [
-    arr(nums, {
-      title: 'nums  (sorted, so duplicates are adjacent)',
-      states: nums.map((_, k) => (k === i ? state : undefined)),
-      pointers: i < nums.length ? [{ name: 'i', index: i }] : [],
-    }),
-    arr(subset, { title: 'subset', states: subset.map(() => 'window' as CellState) }),
-    frames('call stack', calls.slice().reverse()),
+  const view = (): Visual[] => [
+    decisionTree(root, { title: 'decision tree  (duplicates skipped together, so no subset repeats)' }),
     resultsViz('res', res.map((s) => `[${s.join(', ')}]`)),
   ];
 
   r.step({
     at: 'Arrays.sort(nums);',
     explain: `Sorting groups duplicates together: ${list(input)} → ${list(nums)}. That is what makes skipping them possible.`,
-    visuals: view(0),
+    visuals: view(),
   });
 
-  const dfs = (i: number) => {
-    calls.push(`dfs(i=${i})`);
+  const dfs = (i: number, node: DecisionTreeNodeViz) => {
     if (i === nums.length) {
       res.push(subset.slice());
+      node.label = `[${subset.join(',')}] ✓`;
+      node.state = 'success';
       r.step({
         at: 'res.add(new ArrayList<>(subset));',
         explain: `Record [${subset.join(', ')}].`,
         vars: { i, subset: list(subset) },
-        visuals: view(i, 'done'),
+        visuals: view(),
         tone: 'success',
       });
-      calls.pop();
       return;
     }
 
     subset.push(nums[i]);
+    const takeNode = mkNode(`[${subset.join(',')}]`, `+${nums[i]}`);
+    takeNode.state = 'active';
+    node.children!.push(takeNode);
     r.step({
       at: ['subset.add(nums[i]);', 'dfs(nums, i + 1, subset);@1'],
       explain: `Take ${nums[i]} and continue.`,
       vars: { i, subset: list(subset) },
-      visuals: view(i, 'success'),
+      visuals: view(),
     });
-    dfs(i + 1);
+    dfs(i + 1, takeNode);
+    if (takeNode.state === 'active') takeNode.state = 'done';
     subset.pop();
 
     let j = i;
@@ -145,26 +146,29 @@ function subsetsII(r: Recorder, input: number[]) {
         at: 'while (i + 1 < nums.length && nums[i] == nums[i + 1]) i++;',
         explain: `Before the "skip" branch, jump past the copies of ${nums[i]} (indices ${i}…${j}). Skipping one copy but not the others would produce the same subset twice.`,
         vars: { i: j, value: nums[i] },
-        visuals: view(j, 'error'),
+        visuals: view(),
         tone: 'warn',
       });
     }
 
+    const skipNode = mkNode(`[${subset.join(',')}]`, j !== i ? `skip ${nums[i]} ×${j - i + 1}` : `skip ${nums[i]}`);
+    skipNode.state = 'active';
+    node.children!.push(skipNode);
     r.step({
       at: 'dfs(nums, i + 1, subset);@2',
       explain: `Skip branch — continue without ${nums[i]}.`,
       vars: { i: j, subset: list(subset) },
-      visuals: view(j, 'muted'),
+      visuals: view(),
     });
-    dfs(j + 1);
-    calls.pop();
+    dfs(j + 1, skipNode);
+    if (skipNode.state === 'active') skipNode.state = 'done';
   };
 
-  dfs(0);
+  dfs(0, root);
   r.step({
     at: 'return res;',
     explain: `${res.length} distinct subsets, each produced exactly once.`,
-    visuals: [resultsViz('res', res.map((s) => `[${s.join(', ')}]`))],
+    visuals: view(),
     tone: 'success',
     result: `return ${res.map((s) => `[${s.join(',')}]`).join(', ')}`,
   });
@@ -434,30 +438,31 @@ function permutations(r: Recorder, nums: number[]) {
 function generateParenthesis(r: Recorder, n: number) {
   const res: string[] = [];
   const calls: string[] = [];
+  const sb: string[] = [];
 
-  const view = (s: string, open: number, closed: number, state: CellState = 'active'): Visual[] => [
-    arr(chars(s), { title: 'string', states: chars(s).map(() => state), indexed: false }),
-    arr([open, closed, n], { title: 'counters', labels: ['numberOpen', 'numberClosed', 'n'], indexed: false }),
+  const view = (open: number, close: number, state: CellState = 'active'): Visual[] => [
+    arr(sb, { title: 'sb  (shared StringBuilder)', states: sb.map(() => state), indexed: false }),
+    arr([open, close, n], { title: 'counters', labels: ['open', 'close', 'n'], indexed: false }),
     frames('call stack', calls.slice().reverse()),
     resultsViz('res', res.map((x) => `"${x}"`)),
   ];
 
   r.step({
-    at: 'dfs(n, "", 0, 0);',
-    explain: `Build the string one character at a time, obeying two rules: never more than ${n} "(", and never more ")" than "(".`,
+    at: 'backtrack(n, 0, 0, new StringBuilder(2 * n), res);',
+    explain: `Build the string one character at a time in a single shared buffer, obeying two rules: never more than ${n} "(", and never more ")" than "(". Appending then deleting the last character is how backtracking undoes a choice on a mutable buffer instead of allocating a new string each call.`,
     vars: { n },
-    visuals: view('', 0, 0, 'idle'),
+    visuals: view(0, 0, 'idle'),
   });
 
-  const dfs = (s: string, open: number, closed: number) => {
-    calls.push(`dfs("${s}", ${open}, ${closed})`);
-    if (n === open && open === closed) {
-      res.push(s);
+  const backtrack = (open: number, close: number) => {
+    calls.push(`backtrack(open=${open}, close=${close})`);
+    if (open === close && close === n) {
+      res.push(sb.join(''));
       r.step({
-        at: ['if (n == numberOpen && numberOpen == numberClosed) {', 'res.add(string);'],
-        explain: `"${s}" uses all ${n} pairs and is balanced.`,
-        vars: { string: `"${s}"`, numberOpen: open, numberClosed: closed },
-        visuals: view(s, open, closed, 'success'),
+        at: ['if (open == close && close == n) {', 'res.add(sb.toString());'],
+        explain: `"${sb.join('')}" uses all ${n} pairs and is balanced.`,
+        vars: { sb: `"${sb.join('')}"`, open, close },
+        visuals: view(open, close, 'success'),
         tone: 'success',
       });
       calls.pop();
@@ -465,35 +470,46 @@ function generateParenthesis(r: Recorder, n: number) {
     }
 
     if (open < n) {
+      sb.push('(');
       r.step({
-        at: ['if (numberOpen < n) {', "dfs(n, string + '(', numberOpen + 1, numberClosed);"],
+        at: ['if (open < n) {', "sb.append('(');"],
         explain: `Only ${open} of ${n} opening brackets used, so "(" is allowed.`,
-        vars: { string: `"${s}"`, numberOpen: open, numberClosed: closed },
-        visuals: view(s + '(', open + 1, closed),
+        vars: { sb: `"${sb.join('')}"`, open: open + 1, close },
+        visuals: view(open + 1, close),
       });
-      dfs(s + '(', open + 1, closed);
+      backtrack(open + 1, close);
+      sb.pop();
+      r.step({
+        at: 'sb.deleteCharAt(sb.length() - 1);@1',
+        explain: `Undo the '(' — the buffer goes back to "${sb.join('')}" so this level can try something else.`,
+        vars: { sb: `"${sb.join('')}"`, open, close },
+        visuals: view(open, close, 'compare'),
+        tone: 'warn',
+      });
     }
 
-    if (closed + 1 <= open) {
+    if (close < open) {
+      sb.push(')');
       r.step({
-        at: ['if (numberClosed + 1 <= numberOpen) {', "dfs(n, string + ')', numberOpen, numberClosed + 1);"],
-        explain: `There are ${open - closed} unmatched "(" open, so ")" keeps the string valid.`,
-        vars: { string: `"${s}"`, numberOpen: open, numberClosed: closed },
-        visuals: view(s + ')', open, closed + 1),
+        at: ['if (close < open) {', "sb.append(')');"],
+        explain: `${open - close} unmatched "(" still open, so ")" keeps the string valid.`,
+        vars: { sb: `"${sb.join('')}"`, open, close: close + 1 },
+        visuals: view(open, close + 1),
       });
-      dfs(s + ')', open, closed + 1);
-    } else if (open >= n) {
+      backtrack(open, close + 1);
+      sb.pop();
       r.step({
-        at: 'if (numberClosed + 1 <= numberOpen) {',
-        explain: `Neither branch is legal from "${s}" — this path is finished.`,
-        vars: { string: `"${s}"`, numberOpen: open, numberClosed: closed },
-        visuals: view(s, open, closed, 'muted'),
+        at: 'sb.deleteCharAt(sb.length() - 1);@2',
+        explain: `Undo the ')' — the buffer goes back to "${sb.join('')}".`,
+        vars: { sb: `"${sb.join('')}"`, open, close },
+        visuals: view(open, close, 'compare'),
+        tone: 'warn',
       });
     }
     calls.pop();
   };
 
-  dfs('', 0, 0);
+  backtrack(0, 0);
   r.step({
     at: 'return res;',
     explain: `${res.length} well-formed strings for n = ${n}.`,
@@ -595,6 +611,125 @@ function letterCombinations(r: Recorder, digits: string) {
     visuals: [resultsViz('res', res.map((x) => `"${x}"`))],
     tone: 'success',
     result: `return [${res.map((x) => `"${x}"`).join(', ')}]`,
+  });
+}
+
+/* ── Palindrome Partitioning ──────────────────────────────────────────────── */
+
+function palindromePartitioning(r: Recorder, s: string) {
+  const res: string[][] = [];
+  const partition: string[] = [];
+  let uid = 0;
+  const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `pp${uid++}`, label, edgeLabel, children: [] });
+  const root = mkNode('[]');
+
+  const isPal = (str: string) => {
+    let a = 0;
+    let b = str.length - 1;
+    while (a < b) {
+      if (str[a] !== str[b]) return false;
+      a++;
+      b--;
+    }
+    return true;
+  };
+
+  const view = (): Visual[] => [
+    decisionTree(root, { title: 'decision tree  (cut here if s[l..r] is a palindrome, or extend the window)' }),
+    resultsViz('res', res.map((p) => `[${p.map((x) => `"${x}"`).join(',')}]`)),
+  ];
+
+  r.step({
+    at: 'backtrack(s, 0, 0, new ArrayList<>());',
+    explain:
+      'l marks where the next piece must start and r sweeps forward. At every (l, r) the window s[l..r] may be cut off as a piece if it is a palindrome, and — independently — the window can always grow by extending r.',
+    vars: { s },
+    visuals: view(),
+  });
+
+  const backtrack = (l: number, rr: number, node: DecisionTreeNodeViz) => {
+    if (rr === s.length) {
+      if (l === rr) {
+        res.push(partition.slice());
+        node.label = `[${partition.join(',')}] ✓`;
+        node.state = 'success';
+        r.step({
+          at: ['if (r == s.length()) {', 'if (l == r) res.add(new ArrayList<>(partition));'],
+          explain: `Every character of "${s}" is covered by a piece — [${partition.map((p) => `"${p}"`).join(', ')}] is a valid partition.`,
+          vars: { l, r: rr },
+          visuals: view(),
+          tone: 'success',
+        });
+      } else {
+        node.label = `[${partition.join(',')}] ✗`;
+        node.state = 'error';
+        r.step({
+          at: ['if (r == s.length()) {', 'return;'],
+          explain: `The end of "${s}" is reached, but "${s.slice(l)}" was never cut off as its own palindrome — dead end.`,
+          vars: { l, r: rr },
+          visuals: view(),
+          tone: 'warn',
+        });
+      }
+      return;
+    }
+
+    const piece = s.slice(l, rr + 1);
+    const pal = isPal(piece);
+    r.step({
+      at: 'if (isPalindrome(s, l, r)) {',
+      explain: pal
+        ? `"${piece}" (s[${l}..${rr}]) is a palindrome — it can be cut off here.`
+        : `"${piece}" (s[${l}..${rr}]) is not a palindrome — it cannot be cut here yet.`,
+      vars: { l, r: rr, piece: `"${piece}"` },
+      visuals: view(),
+      tone: pal ? 'success' : 'neutral',
+    });
+
+    if (pal) {
+      partition.push(piece);
+      const cutNode = mkNode(`[${partition.join(',')}]`, `cut "${piece}"`);
+      cutNode.state = 'active';
+      node.children!.push(cutNode);
+      r.step({
+        at: ['partition.add(s.substring(l, r + 1));', 'backtrack(s, r + 1, r + 1, partition);'],
+        explain: `Take "${piece}" as the next piece and start a fresh window right after it.`,
+        vars: { l: rr + 1, r: rr + 1, partition: `[${partition.map((p) => `"${p}"`).join(', ')}]` },
+        visuals: view(),
+      });
+      backtrack(rr + 1, rr + 1, cutNode);
+      if (cutNode.state === 'active') cutNode.state = 'done';
+      partition.pop();
+
+      r.step({
+        at: 'partition.remove(partition.size() - 1);',
+        explain: `Backtrack: remove "${piece}" so other partitions can still be explored.`,
+        vars: { l, r: rr },
+        visuals: view(),
+        tone: 'warn',
+      });
+    }
+
+    const extendNode = mkNode(`[${partition.join(',')}]`, `extend → "${s.slice(l, rr + 2)}"`);
+    extendNode.state = 'active';
+    node.children!.push(extendNode);
+    r.step({
+      at: 'backtrack(s, l, r + 1, partition);',
+      explain: `Also try growing the window: keep "${piece}" uncut and extend it with the next character.`,
+      vars: { l, r: rr + 1 },
+      visuals: view(),
+    });
+    backtrack(l, rr + 1, extendNode);
+    if (extendNode.state === 'active') extendNode.state = 'done';
+  };
+
+  backtrack(0, 0, root);
+  r.step({
+    at: 'return res;',
+    explain: `${res.length} way(s) to partition "${s}" into palindromes.`,
+    visuals: view(),
+    tone: 'success',
+    result: `return [${res.map((p) => `[${p.map((x) => `"${x}"`).join(',')}]`).join(', ')}]`,
   });
 }
 
@@ -831,6 +966,12 @@ export const backtrackingTracers: Record<string, Tracer> = {
     examples: [
       { label: 'digits = "23"', input: 'digits = "23"', run: (r) => letterCombinations(r, '23') },
       { label: 'digits = "7"', input: 'digits = "7"', run: (r) => letterCombinations(r, '7') },
+    ],
+  },
+  'medium/backtracking/PalindromePartitioning': {
+    examples: [
+      { label: 's = "aab"', input: 's = "aab"', run: (r) => palindromePartitioning(r, 'aab') },
+      { label: 's = "aba"', input: 's = "aba"', run: (r) => palindromePartitioning(r, 'aba') },
     ],
   },
   'medium/backtracking/WordSearch': {
