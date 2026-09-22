@@ -800,7 +800,7 @@ function wordSearch(r: Recorder, input: string[][], word: string) {
     calls.pop();
     if (!found) {
       r.step({
-        at: 'board[r][c] = temp; // restore original char.',
+        at: 'board[r][c] = word.charAt(i);',
         explain: `No direction from (${rr}, ${cc}) completed the word — restore '${temp}' so other paths can use this cell.`,
         vars: { r: rr, c: cc, i },
         visuals: view(rr, cc, i, 'compare'),
@@ -811,7 +811,7 @@ function wordSearch(r: Recorder, input: string[][], word: string) {
   };
 
   r.step({
-    at: 'if (board[r][c] == word.charAt(0) && backtrack(board, r, c, word, 0)) {',
+    at: 'if (board[r][c] == word.charAt(0) && backtrack(r, c, word, 0)) {',
     explain: `Try to start the search only at cells holding '${word[0]}', the first character of "${word}".`,
     visuals: view(-1, -1, 0, 'idle'),
   });
@@ -820,7 +820,7 @@ function wordSearch(r: Recorder, input: string[][], word: string) {
     for (let cc = 0; cc < COLS; cc++) {
       if (board[rr][cc] !== word[0]) continue;
       r.step({
-        at: 'if (board[r][c] == word.charAt(0) && backtrack(board, r, c, word, 0)) {',
+        at: 'if (board[r][c] == word.charAt(0) && backtrack(r, c, word, 0)) {',
         explain: `(${rr}, ${cc}) holds '${word[0]}' — start a path here.`,
         vars: { r: rr, c: cc },
         visuals: view(rr, cc, 0, 'active'),

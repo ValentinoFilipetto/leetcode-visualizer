@@ -343,7 +343,7 @@ function designTwitter(r: Recorder, ops: TwitterOp[]) {
     // Heap entries: [tweetId, time, user, nextIndex] ordered by time descending.
     const h = new BinaryHeap<[number, number, number, number]>((a, b) => b[1] - a[1]);
     const heapViz = (state?: CellState): Visual =>
-      heap('minHeap  (the newest unread tweet of each followee)', h.items.map(([id, t, u]) => `#${id}@t${t} (u${u})`), 'max', {
+      heap('maxHeap  (the newest unread tweet of each followee)', h.items.map(([id, t, u]) => `#${id}@t${t} (u${u})`), 'max', {
         states: h.items.map((_, i) => (i === 0 ? state : undefined)),
       });
 
@@ -360,7 +360,7 @@ function designTwitter(r: Recorder, ops: TwitterOp[]) {
       const index = list_.length - 1;
       h.offer([list_[index][0], list_[index][1], follower, index - 1]);
       r.step({
-        at: ['int index = tweets.size() - 1;', 'minHeap.offer(new int[] { tweet[0], tweet[1], follower, index - 1 });'],
+        at: ['int index = tweets.size() - 1;', 'maxHeap.offer(new int[] { tweet[0], tweet[1], follower, index - 1 });'],
         explain: `Seed the frontier with user ${follower}'s newest tweet #${list_[index][0]} (t${list_[index][1]}), remembering where to continue in their list.`,
         vars: { follower, tweetId: list_[index][0], index },
         visuals: [tweetsViz(follower), heapViz('window')],
@@ -372,7 +372,7 @@ function designTwitter(r: Recorder, ops: TwitterOp[]) {
       const top = h.poll();
       feed.push(top[0]);
       r.step({
-        at: ['int[] topTweet = minHeap.poll();', 'topTenTweets.add(topTweet[0]);'],
+        at: ['int[] topTweet = maxHeap.poll();', 'topTenTweets.add(topTweet[0]);'],
         explain: `The newest tweet in the frontier is #${top[0]} (t${top[1]}) from user ${top[2]} — it is next in the feed.`,
         vars: { tweetId: top[0], time: top[1], user: top[2], feedSize: feed.length },
         visuals: [heapViz('success'), chips('topTenTweets', feed.map((id) => `#${id}`))],
@@ -384,7 +384,7 @@ function designTwitter(r: Recorder, ops: TwitterOp[]) {
         const nt = tweets.get(top[2])![nextIndex];
         h.offer([nt[0], nt[1], top[2], nextIndex - 1]);
         r.step({
-          at: ['if (topTweetIndex >= 0) {', 'minHeap.offer(new int[] { newTweet[0], newTweet[1], topTweet[2], topTweetIndex - 1 });'],
+          at: ['if (topTweetIndex >= 0) {', 'maxHeap.offer(new int[] { newTweet[0], newTweet[1], topTweet[2], topTweetIndex - 1 });'],
           explain: `User ${top[2]} has an older tweet #${nt[0]} (t${nt[1]}) — push it so it can still compete with the other users' tweets.`,
           vars: { user: top[2], tweetId: nt[0], nextIndex },
           visuals: [heapViz('window'), chips('topTenTweets', feed.map((id) => `#${id}`))],
