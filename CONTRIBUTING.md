@@ -69,6 +69,12 @@ the colour language across every problem, so keep their meaning consistent.
 ## 3. Check
 
 ```
-pnpm run check       # replays every example, reports unresolved snippets and missing tracers
+pnpm run check                          # replays every example, reports unresolved snippets and missing tracers
 pnpm run typecheck
+pnpm run verify <solutionId> [...]      # renders it in a real browser via Puppeteer — see AGENTS.md
 ```
+
+`pnpm run check` only replays the trace data; it never renders a component, so a broken visual
+(bad viz shape, a component that throws on certain states) won't show up there. `pnpm run verify`
+is the browser-level check — run it on every solution id you touched before committing. See
+[AGENTS.md](./AGENTS.md) for the full expected workflow when adding or changing a visualization.
