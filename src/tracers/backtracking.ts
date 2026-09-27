@@ -936,36 +936,27 @@ function wordSearch(r: Recorder, input: string[][], word: string) {
 
 function matchsticksToSquare(r: Recorder, matchsticks: number[]) {
   const sides = [0, 0, 0, 0];
-  const calls: string[] = [];
   const sum = matchsticks.reduce((a, b) => a + b, 0);
+  let uid = 0;
+  const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `ms${uid++}`, label, edgeLabel, children: [] });
+  const root = mkNode('[0,0,0,0]');
 
-  const view = (i: number, j: number, state: CellState): Visual[] => [
-    arr(matchsticks, {
-      title: 'matchsticks',
-      states: matchsticks.map((_, k) => (k === i ? state : k < i ? ('success' as CellState) : undefined)),
-      pointers: i >= 0 && i < matchsticks.length ? [{ name: 'i', index: i }] : [],
-    }),
-    arr(sides, {
-      title: 'sides',
-      labels: ['side 0', 'side 1', 'side 2', 'side 3'],
-      indexed: false,
-      states: sides.map((_, k) => (k === j ? state : undefined)),
-    }),
-    frames('call stack', calls.slice().reverse()),
-  ];
+  const view = (): Visual[] => [decisionTree(root, { title: 'decision tree  (one child per side the next stick could join)' })];
 
   r.step({
     at: 'int sum = Arrays.stream(matchsticks).sum();',
     explain: `Total matchstick length is ${sum}. A square needs four equal sides, so the total must divide evenly by 4.`,
     vars: { sum },
-    visuals: view(-1, -1, 'idle'),
+    visuals: view(),
   });
 
   if (sum % 4 !== 0) {
+    root.label = `${sum} ✗`;
+    root.state = 'error';
     r.step({
       at: 'if (sum % 4 != 0) return false;',
       explain: `${sum} is not divisible by 4 — no arrangement of these sticks can form a square, so return immediately without trying any.`,
-      visuals: view(-1, -1, 'error'),
+      visuals: view(),
       tone: 'error',
       result: 'return false',
     });
@@ -975,54 +966,55 @@ function matchsticksToSquare(r: Recorder, matchsticks: number[]) {
   r.step({
     at: ['int[] sides = new int[4];', 'return dfs(matchsticks, sides, 0);'],
     explain: `${sum} splits evenly into four sides of length ${sum / 4} — but the code never checks that directly. It just tries every stick on every side and hopes the four totals happen to end up equal once all sticks are placed.`,
-    visuals: view(-1, -1, 'idle'),
+    visuals: view(),
   });
 
-  const dfs = (i: number): boolean => {
+  const dfs = (i: number, node: DecisionTreeNodeViz): boolean => {
     if (i === matchsticks.length) {
       const ok = sides[0] === sides[1] && sides[1] === sides[2] && sides[2] === sides[3];
+      node.label = `[${sides.join(',')}] ${ok ? '✓' : '✗'}`;
+      node.state = ok ? 'success' : 'error';
       r.step({
         at: ['if (i == matchsticks.length) {', 'return sides[0] == sides[1] && sides[1] == sides[2] && sides[2] == sides[3];'],
         explain: `Every stick is placed. Sides are [${sides.join(', ')}] — ${ok ? 'all four equal, a square!' : 'not all equal, this arrangement fails.'}`,
-        visuals: view(i, -1, ok ? 'success' : 'error'),
+        visuals: view(),
         tone: ok ? 'success' : 'error',
       });
       return ok;
     }
 
-    calls.push(`dfs(i=${i})`);
     for (let j = 0; j < 4; j++) {
       sides[j] += matchsticks[i];
+      const child = mkNode(`[${sides.join(',')}]`, `+${matchsticks[i]} → s${j}`);
+      child.state = 'active';
+      node.children!.push(child);
       r.step({
         at: 'sides[j] += matchsticks[i];',
         explain: `Try stick ${matchsticks[i]} (index ${i}) on side ${j}, making it ${sides[j]}.`,
         vars: { i, j, stick: matchsticks[i], side: sides[j] },
-        visuals: view(i, j, 'active'),
+        visuals: view(),
       });
-      if (dfs(i + 1)) {
-        calls.pop();
-        return true;
-      }
+      if (dfs(i + 1, child)) return true;
+      if (child.state === 'active') child.state = 'done';
       sides[j] -= matchsticks[i];
       r.step({
         at: 'sides[j] -= matchsticks[i];',
         explain: `Side ${j} didn't lead to a square — remove stick ${matchsticks[i]} again and try it on the next side. Nothing here remembers that side ${j} already failed with this stick, so equivalent side choices get re-explored on every call.`,
         vars: { i, j, stick: matchsticks[i], side: sides[j] },
-        visuals: view(i, j, 'compare'),
+        visuals: view(),
         tone: 'warn',
       });
     }
-    calls.pop();
     return false;
   };
 
-  const found = dfs(0);
+  const found = dfs(0, root);
   r.step({
     at: 'return dfs(matchsticks, sides, 0);',
     explain: found
       ? `A valid square arrangement exists: sides = [${sides.join(', ')}].`
       : 'No arrangement of the sticks forms a square.',
-    visuals: view(matchsticks.length, -1, found ? 'success' : 'error'),
+    visuals: view(),
     tone: found ? 'success' : 'error',
     result: `return ${found}`,
   });
