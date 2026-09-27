@@ -1884,11 +1884,17 @@ kbd {
     padding: 9px 10px;
   }
   /* A 6px-tall slider is unusable with a thumb, so the input grows to 30px and
-     the visible rail moves to a pseudo-element behind it. */
+     the visible rail moves to a pseudo-element behind it. The thumb itself keeps
+     its desktop size: the drag target comes from the input's height, and scaling
+     the disc without scaling its ring and the 6px rail makes the control read as
+     a different component between breakpoints. */
   .scrub-track {
-    --thumb: 20px;
     height: 30px;
   }
+  /* Desktop paints rail (the input's own background) < thumb < fill. Here the
+     rail is a positioned pseudo-element, which would otherwise paint over the
+     static input and slice a grey band through the thumb — so the order is
+     pinned explicitly to match. */
   .scrub-track::before {
     content: '';
     position: absolute;
@@ -1898,15 +1904,17 @@ kbd {
     border-radius: 999px;
     background: var(--panel-2);
     border: 1px solid var(--line);
+    z-index: 0;
   }
   .scrub input[type='range'] {
     height: 30px;
     background: transparent;
     border-color: transparent;
+    position: relative;
+    z-index: 1;
   }
-  .scrub input[type='range']::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
+  .scrub-fill {
+    z-index: 2;
   }
 
   .viz-panel.maximized {
