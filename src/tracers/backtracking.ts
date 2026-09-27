@@ -1185,6 +1185,11 @@ export const backtrackingTracers: Record<string, Tracer> = {
       { label: 'matchsticks = [1,1,1,1] (found)', input: 'matchsticks = [1, 1, 1, 1]', run: (r) => matchsticksToSquare(r, [1, 1, 1, 1]) },
       { label: 'matchsticks = [1,1,1] (sum not ÷4)', input: 'matchsticks = [1, 1, 1]', run: (r) => matchsticksToSquare(r, [1, 1, 1]) },
       { label: 'matchsticks = [2,2] (not found)', input: 'matchsticks = [2, 2]', run: (r) => matchsticksToSquare(r, [2, 2]) },
+      {
+        label: 'matchsticks = [1,3,4,2,2,4] (found)',
+        input: 'matchsticks = [1, 3, 4, 2, 2, 4]',
+        run: (r) => matchsticksToSquare(r, [1, 3, 4, 2, 2, 4]),
+      },
     ],
   },
   'medium/backtracking/SumOfAllSubsetsXORTotal': {

@@ -146,7 +146,9 @@ export function DecisionTreeView({ viz }: { viz: DecisionTreeViz }) {
       {!viz.root ? (
         <div className="viz-empty">empty</div>
       ) : (
-        <div className="svg-viz">
+        // A search tree grows without bound; shrinking it to fit turns the labels
+        // into a smear, so it keeps its natural size and pans instead.
+        <div className="svg-viz svg-viz-natural">
           <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img">
             {placed.map((p, i) => {
               if (!p.parent) return null;

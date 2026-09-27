@@ -1088,6 +1088,16 @@ button {
   max-width: 100%;
   height: auto;
 }
+
+/* Decision trees opt out of shrink-to-fit: a deep search tree scales down to an
+   unreadable smear (a 108-leaf tree lands at 5%), so it keeps its natural size
+   and the container pans instead. */
+.svg-viz-natural {
+  overscroll-behavior-x: contain;
+}
+.svg-viz-natural svg {
+  max-width: none;
+}
 .node-circle {
   --tone: var(--line-strong);
   fill: var(--panel-2);
