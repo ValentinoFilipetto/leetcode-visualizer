@@ -199,6 +199,11 @@
     "slug": "permutations",
     "number": 46
   },
+  "medium/backtracking/PermutationsII": {
+    "title": "Permutations II",
+    "slug": "permutations-ii",
+    "number": 47
+  },
   "medium/backtracking/Subsets": {
     "title": "Subsets",
     "slug": "subsets",

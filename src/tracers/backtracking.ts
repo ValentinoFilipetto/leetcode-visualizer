@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, DecisionTreeNodeViz, TextViz, Tracer, Visual } from '../types';
-import { arr, chars, chips, decisionTree, frames, grid, list } from './helpers';
+import { arr, chars, chips, decisionTree, frames, grid, list, mapOf } from './helpers';
 
 /** Results panel: every finished branch, with the newest one highlighted. */
 function resultsViz(title: string, items: string[]): TextViz {
@@ -429,6 +429,91 @@ function permutations(r: Recorder, nums: number[]) {
     visuals: view(),
     tone: 'success',
     result: `return ${res.length} permutations`,
+  });
+}
+
+/* ── Permutations II ──────────────────────────────────────────────────────── */
+
+function permutationsUnique(r: Recorder, nums: number[]) {
+  const res: number[][] = [];
+  const combination: number[] = [];
+  const counter = new Map<number, number>();
+  for (const num of nums) counter.set(num, (counter.get(num) ?? 0) + 1);
+  let uid = 0;
+  const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `pu${uid++}`, label, edgeLabel, children: [] });
+  const root = mkNode('[]');
+
+  const view = (): Visual[] => [
+    decisionTree(root, { title: 'decision tree  (one child per distinct value still available)' }),
+    mapOf('counter  (remaining copies of each number)', counter),
+    resultsViz('res', res.map((s) => `[${s.join(', ')}]`)),
+  ];
+
+  r.step({
+    at: 'this.backtrack(new ArrayList<>(), nums.length, counter);',
+    explain: `Repeated numbers make identical choices indistinguishable, so branch on distinct values instead of indices: counting how many copies of each number remain, and choosing an entry only decrements its count. Starting counts: ${[...counter].map(([k, v]) => `${k}×${v}`).join(', ')}.`,
+    visuals: view(),
+  });
+
+  const dfs = (node: DecisionTreeNodeViz) => {
+    if (combination.length === nums.length) {
+      res.push(combination.slice());
+      node.label = `[${combination.join(',')}] ✓`;
+      node.state = 'success';
+      r.step({
+        at: ['if (combination.size() == n) {', 'res.add(new ArrayList<>(combination));'],
+        explain: `All ${nums.length} slots are filled — [${combination.join(', ')}] is a complete permutation.`,
+        vars: { combination: list(combination) },
+        visuals: view(),
+        tone: 'success',
+      });
+      return;
+    }
+
+    for (const [num, count] of [...counter]) {
+      if (count === 0) {
+        r.step({
+          at: 'if (count == 0) continue;',
+          explain: `No copies of ${num} left to place here — skip it.`,
+          vars: { num, count },
+          visuals: view(),
+          tone: 'warn',
+        });
+        continue;
+      }
+
+      combination.push(num);
+      counter.set(num, count - 1);
+      const child = mkNode(`[${combination.join(',')}]`, `+${num}`);
+      child.state = 'active';
+      node.children!.push(child);
+      r.step({
+        at: ['combination.add(num);', 'counter.put(num, count - 1);'],
+        explain: `Place ${num} at position ${combination.length - 1}, using up one of its remaining copies.`,
+        vars: { num, count, combination: list(combination) },
+        visuals: view(),
+      });
+      dfs(child);
+      if (child.state === 'active') child.state = 'done';
+      combination.pop();
+      counter.set(num, count);
+      r.step({
+        at: ['combination.remove(combination.size() - 1);', 'counter.put(num, count);'],
+        explain: `Backtrack: return ${num}'s copy to the counter so a sibling branch can use it.`,
+        vars: { num, count, combination: list(combination) },
+        visuals: view(),
+        tone: 'warn',
+      });
+    }
+  };
+
+  dfs(root);
+  r.step({
+    at: 'return res;',
+    explain: `${res.length} distinct permutation(s) — repeated numbers never produced a duplicate, because each was chosen by count rather than by position.`,
+    visuals: view(),
+    tone: 'success',
+    result: `return ${res.map((s) => `[${s.join(',')}]`).join(', ')}`,
   });
 }
 
@@ -949,6 +1034,12 @@ export const backtrackingTracers: Record<string, Tracer> = {
     examples: [
       { label: 'nums = [1,2,3]', input: 'nums = [1, 2, 3]', run: (r) => permutations(r, [1, 2, 3]) },
       { label: 'nums = [4,5]', input: 'nums = [4, 5]', run: (r) => permutations(r, [4, 5]) },
+    ],
+  },
+  'medium/backtracking/PermutationsII': {
+    examples: [
+      { label: 'nums = [1,1,2]', input: 'nums = [1, 1, 2]', run: (r) => permutationsUnique(r, [1, 1, 2]) },
+      { label: 'nums = [2,2,1,1]', input: 'nums = [2, 2, 1, 1]', run: (r) => permutationsUnique(r, [2, 2, 1, 1]) },
     ],
   },
   'medium/backtracking/GenerateParentheses': {
