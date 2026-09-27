@@ -508,5 +508,10 @@
     "title": "Palindrome Partitioning",
     "slug": "palindrome-partitioning",
     "number": 131
+  },
+  "medium/backtracking/MatchsticksToSquare": {
+    "title": "Matchsticks to Square",
+    "slug": "matchsticks-to-square",
+    "number": 473
   }
 }

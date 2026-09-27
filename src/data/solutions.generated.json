@@ -617,6 +617,21 @@
       "code": "package leetcode.solutions.medium.backtracking;\n\nimport java.util.ArrayList;\nimport java.util.List;\nimport java.util.Map;\n\n/**\n * Pattern: Backtracking (DFS)\n * Time complexity: O(n * 4ⁿ), where n comes from combination.toString() and 4ⁿ from the fact that we have 4 letters per digit in the worst case.\n * Space complexity: O(n)\n */\n\npublic class LetterCombinationsOfAPhoneNumber {\n    // Using char[] instead of List<Character> avoids boxing, reduces memory use,\n    // and iterates faster. Lists store Character objects (heap + indirection),\n    // while char[] is primitive, compact, and ideal for high‑performance backtracking.\n    private static final Map<Character, char[]> KEYPAD = Map.of(\n            '2', new char[]{'a','b','c'},\n            '3', new char[]{'d','e','f'},\n            '4', new char[]{'g','h','i'},\n            '5', new char[]{'j','k','l'},\n            '6', new char[]{'m','n','o'},\n            '7', new char[]{'p','q','r','s'},\n            '8', new char[]{'t','u','v'},\n            '9', new char[]{'w','x','y','z'}\n    );\n\n    private final List<String> res = new ArrayList<>();\n\n    public List<String> letterCombinations(String digits) {\n        if (digits.isEmpty()) return res;\n        backtracking(0, digits, new StringBuilder());\n        return res;\n    }\n\n    private void backtracking(int i, String digits, StringBuilder combination) {\n        if (i == digits.length()) {\n            res.add(combination.toString());\n            return;\n        }\n\n        char[] characters = KEYPAD.get(digits.charAt(i));\n        for (char character : characters) {\n            combination.append(character);\n            backtracking(i + 1, digits, combination);\n            combination.deleteCharAt(combination.length() - 1);\n        }\n    }\n}"
     },
     {
+      "id": "medium/backtracking/MatchsticksToSquare",
+      "className": "MatchsticksToSquare",
+      "title": "Matchsticks to Square",
+      "difficulty": "medium",
+      "category": "backtracking",
+      "categoryLabel": "Backtracking",
+      "pattern": "Backtracking",
+      "time": "",
+      "space": "",
+      "leetcodeSlug": "matchsticks-to-square",
+      "leetcodeNumber": 473,
+      "sourcePath": "src/main/java/leetcode/solutions/medium/backtracking/MatchsticksToSquare.java",
+      "code": "package leetcode.solutions.medium.backtracking;\n\nimport java.util.Arrays;\n\npublic class MatchsticksToSquare {\n    public boolean makesquare(int[] matchsticks) {\n        int sum = Arrays.stream(matchsticks).sum();\n        if (sum % 4 != 0) return false;\n\n        int[] sides = new int[4];\n        return dfs(matchsticks, sides, 0);\n    }\n\n    private boolean dfs(int[] matchsticks, int[] sides, int i) {\n        if (i == matchsticks.length) {\n            return sides[0] == sides[1] && sides[1] == sides[2] && sides[2] == sides[3];\n        }\n\n        for (int j = 0; j < 4; j++) {\n            sides[j] += matchsticks[i];\n            if (dfs(matchsticks, sides, i + 1)) return true;\n            sides[j] -= matchsticks[i];\n        }\n\n        return false;\n    }\n}"
+    },
+    {
       "id": "medium/backtracking/PalindromePartitioning",
       "className": "PalindromePartitioning",
       "title": "Palindrome Partitioning",
