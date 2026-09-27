@@ -3,7 +3,7 @@ import data from './data/solutions.generated.json';
 import type { Solution } from './types';
 import { Sidebar } from './components/Sidebar';
 import { SolutionView } from './components/SolutionView';
-import { IconExternal, IconMenu, IconMoon, IconSidebar, IconSun } from './components/icons';
+import { IconCode, IconExternal, IconMenu, IconMoon, IconSidebar, IconSun } from './components/icons';
 import { tracers } from './tracers';
 
 const JAVA_REPO = 'https://github.com/ValentinoFilipetto/java-leetcode-solutions';
@@ -14,6 +14,25 @@ function leetcodeUrl(s: Solution): string {
   return s.leetcodeSlug
     ? `https://leetcode.com/problems/${s.leetcodeSlug}/`
     : `https://leetcode.com/problemset/?search=${encodeURIComponent(s.title)}`;
+}
+
+/** Rendered twice: in the topbar on desktop, inside the meta strip on mobile. */
+function SolutionLinks({ solution }: { solution: Solution }) {
+  return (
+    <>
+      <a className="link-btn" href={leetcodeUrl(solution)} target="_blank" rel="noreferrer">
+        LeetCode <IconExternal />
+      </a>
+      <a
+        className="link-btn"
+        href={`${JAVA_REPO}/blob/main/${solution.sourcePath}`}
+        target="_blank"
+        rel="noreferrer"
+      >
+        Source <IconExternal />
+      </a>
+    </>
+  );
 }
 
 function idFromHash(): string | null {
@@ -29,11 +48,16 @@ export default function App() {
     () => (localStorage.getItem('theme') as 'dark' | 'light') ?? 'dark',
   );
   const [menuOpen, setMenuOpen] = useState(false);
+  // Mobile only: the code panel is collapsed by default so the stage gets the full width.
+  const [showCode, setShowCode] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('theme', theme);
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', theme === 'dark' ? '#10151f' : '#ffffff');
   }, [theme]);
 
   useEffect(() => {
@@ -83,7 +107,7 @@ export default function App() {
           >
             <IconSidebar />
           </button>
-          <div style={{ minWidth: 0 }}>
+          <div className="title-block">
             <h1>
               {solution.leetcodeNumber !== null && (
                 <span style={{ color: 'var(--text-faint)', fontWeight: 500 }}>{solution.leetcodeNumber}. </span>
@@ -95,20 +119,23 @@ export default function App() {
               <span className="tag">{solution.pattern || solution.categoryLabel}</span>
               {solution.time && <span className="tag mono">time {solution.time}</span>}
               {solution.space && <span className="tag mono">space {solution.space}</span>}
+              <span className="mobile-links">
+                <SolutionLinks solution={solution} />
+              </span>
             </div>
           </div>
           <div className="topbar-actions">
-            <a className="link-btn" href={leetcodeUrl(solution)} target="_blank" rel="noreferrer">
-              LeetCode <IconExternal />
-            </a>
-            <a
-              className="link-btn"
-              href={`${JAVA_REPO}/blob/main/${solution.sourcePath}`}
-              target="_blank"
-              rel="noreferrer"
+            <span className="desktop-links">
+              <SolutionLinks solution={solution} />
+            </span>
+            <button
+              className={`icon-btn code-btn${showCode ? ' on' : ''}`}
+              onClick={() => setShowCode((c) => !c)}
+              aria-pressed={showCode}
+              title={showCode ? 'Show the visualization' : 'Show the Java source'}
             >
-              Source <IconExternal />
-            </a>
+              <IconCode />
+            </button>
             <button
               className="icon-btn"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -119,7 +146,7 @@ export default function App() {
           </div>
         </header>
 
-        <SolutionView solution={solution} tracer={tracers[solution.id]} />
+        <SolutionView solution={solution} tracer={tracers[solution.id]} showCode={showCode} />
       </main>
     </div>
   );

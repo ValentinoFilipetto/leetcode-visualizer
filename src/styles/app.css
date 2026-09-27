@@ -2,6 +2,9 @@
    Design tokens
    ───────────────────────────────────────────────────────────────────────────── */
 :root {
+  /* Native controls (the speed/example selects, scrollbars) follow the app theme. */
+  color-scheme: dark;
+
   --bg: #0a0d14;
   --bg-elevated: #10151f;
   --panel: #121824;
@@ -37,6 +40,8 @@
 }
 
 :root[data-theme='light'] {
+  color-scheme: light;
+
   --bg: #f6f7fb;
   --bg-elevated: #ffffff;
   --panel: #ffffff;
@@ -314,6 +319,18 @@ button {
   letter-spacing: -0.015em;
 }
 
+.title-block {
+  min-width: 0;
+}
+
+/* The LeetCode/Source links render twice; only one copy is ever visible.
+   .icon-btn sets display later in this file, so the code toggle needs both
+   classes to stay hidden outside the mobile layout. */
+.mobile-links,
+.icon-btn.code-btn {
+  display: none;
+}
+
 .meta-row {
   display: flex;
   gap: 8px;
@@ -356,6 +373,10 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.desktop-links {
+  display: contents;
 }
 
 .icon-btn {
@@ -1434,6 +1455,7 @@ button {
 }
 
 .scrub-track {
+  --thumb: 16px;
   position: relative;
   height: 26px;
   display: flex;
@@ -1453,8 +1475,8 @@ button {
 }
 .scrub input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
+  width: var(--thumb);
+  height: var(--thumb);
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg-elevated);
@@ -1622,4 +1644,291 @@ kbd {
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
   z-index: 20;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Mobile
+
+   The phone layout keeps the visualization and the player, and gives up
+   everything else: the code panel becomes opt-in (the </> toggle in the
+   topbar), complexity tags and keyboard hints disappear, and the LeetCode /
+   Source links move down into the meta strip.
+   ───────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  /* Dynamic viewport units: the browser's collapsing toolbar must not clip the player. */
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+
+  body {
+    font-size: 13.5px;
+  }
+
+  /* No hover on touch, so the grey tap flash is all the user would see. */
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ── Drawer ── */
+  .sidebar.open {
+    width: min(296px, 86vw);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .sol-item {
+    padding: 10px;
+  }
+  .sol-item-title {
+    font-size: 13.5px;
+  }
+  .chip {
+    padding: 6px 12px;
+  }
+
+  /* ── Topbar: title row, then a single compact meta strip ── */
+  .topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'menu title actions'
+      'meta meta meta';
+    align-items: center;
+    padding: 10px 12px;
+    column-gap: 10px;
+    row-gap: 6px;
+  }
+  .menu-btn {
+    grid-area: menu;
+  }
+  /* Dissolve the wrapper so the title and the strip can sit in separate rows. */
+  .title-block {
+    display: contents;
+  }
+  .topbar h1 {
+    grid-area: title;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .topbar-actions {
+    grid-area: actions;
+    gap: 6px;
+  }
+  .icon-btn.code-btn {
+    display: grid;
+  }
+  .icon-btn.on {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  /* One line, scrollable if the pattern name is long. */
+  .meta-row {
+    grid-area: meta;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-top: 0;
+  }
+  .meta-row::-webkit-scrollbar {
+    display: none;
+  }
+  /* Complexity is the first thing to go — it is reference material, not the story. */
+  .tag.mono {
+    display: none;
+  }
+  .desktop-links {
+    display: none;
+  }
+  .mobile-links {
+    display: contents;
+  }
+  .meta-row .link-btn {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    flex: none;
+  }
+  .meta-row .link-btn svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  /* ── Workspace: one panel at a time, filling the column ── */
+  .input-line {
+    padding: 8px 12px 0;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .input-line > span:not(.label) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .example-select {
+    flex: none;
+    max-width: 44vw;
+  }
+
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    padding: 8px 8px 0;
+    overflow: hidden;
+  }
+  /* The code panel is hidden until asked for, so the stage gets the full width. */
+  .workspace > .code-panel {
+    display: none;
+  }
+  .workspace.show-code > .code-panel {
+    display: flex;
+  }
+  .workspace.show-code > .panel:not(.code-panel) {
+    display: none;
+  }
+  .code-scroll {
+    max-height: none;
+  }
+
+  .panel-head {
+    padding: 8px 10px;
+  }
+  /* The stage header is a whole row spent on a label and a full-screen button
+     that buys back less room than it costs — the stage takes the space instead. */
+  .viz-panel:not(.maximized) > .panel-head {
+    display: none;
+  }
+
+  .stage-scroll {
+    padding: 10px;
+    gap: 14px;
+  }
+
+  /* ── Smaller marks so more of a structure fits across the screen ── */
+  .cell {
+    min-width: 34px;
+    height: 34px;
+    font-size: 12px;
+    padding: 0 5px;
+  }
+  .grid-viz .cell {
+    min-width: 32px;
+    height: 32px;
+  }
+  .grid-viz.compact .cell {
+    min-width: 26px;
+    height: 26px;
+  }
+  .grid-axis span {
+    min-width: 32px;
+  }
+  .array-viz {
+    gap: 4px;
+  }
+  .bars-viz {
+    min-height: 140px;
+  }
+  .bar-slot {
+    height: 150px;
+  }
+  .bar {
+    width: 22px;
+  }
+
+  /* ── Explanation: the one piece of prose worth its space ── */
+  .vars-bar {
+    padding: 8px 10px;
+    max-height: 62px;
+  }
+  .explain-bar {
+    padding: 10px;
+    max-height: 30vh;
+    overflow-y: auto;
+  }
+  .explain-text {
+    font-size: 12.5px;
+  }
+
+  /* ── Player: scrubber on its own row, thumb-sized controls below ── */
+  .player {
+    flex-wrap: wrap;
+    gap: 8px;
+    row-gap: 2px;
+    padding: 6px 12px calc(10px + env(safe-area-inset-bottom));
+  }
+  .scrub {
+    order: -1;
+    flex-basis: 100%;
+  }
+  /* The scrubber already jumps to either end, and ← → have no meaning here. */
+  .edge-btn,
+  .shortcuts {
+    display: none;
+  }
+  .step-btn {
+    width: 42px;
+    height: 42px;
+  }
+  .play-btn {
+    width: 48px;
+    height: 48px;
+  }
+  .speed-select {
+    margin-left: auto;
+    padding: 9px 10px;
+  }
+  /* A 6px-tall slider is unusable with a thumb, so the input grows to 30px and
+     the visible rail moves to a pseudo-element behind it. */
+  .scrub-track {
+    --thumb: 20px;
+    height: 30px;
+  }
+  .scrub-track::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+  }
+  .scrub input[type='range'] {
+    height: 30px;
+    background: transparent;
+    border-color: transparent;
+  }
+  .scrub input[type='range']::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+  }
+
+  .viz-panel.maximized {
+    inset: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Very narrow phones: drop to the bare minimum. */
+@media (max-width: 380px) {
+  .topbar h1 {
+    font-size: 14px;
+  }
+  .step-btn {
+    width: 38px;
+    height: 38px;
+  }
+  .cell {
+    min-width: 30px;
+    height: 30px;
+    font-size: 11.5px;
+  }
+  .meta-row .link-btn:last-child {
+    display: none;
+  }
 }

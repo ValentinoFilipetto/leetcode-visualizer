@@ -104,3 +104,10 @@ export const IconSidebar = () => (
     <path d="M9.5 4v16" />
   </svg>
 );
+
+/** Angle brackets — the mobile "show the Java source" toggle. */
+export const IconCode = () => (
+  <svg {...base} width={15} height={15}>
+    <path d="M9 7l-5 5 5 5M15 7l5 5-5 5" />
+  </svg>
+);

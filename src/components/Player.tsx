@@ -25,7 +25,12 @@ export function Player({ index, total, playing, speed, onSeek, onTogglePlay, onS
 
   return (
     <div className="player">
-      <button className="step-btn" onClick={() => onSeek(0)} disabled={index === 0} title="First step (Home)">
+      <button
+        className="step-btn edge-btn"
+        onClick={() => onSeek(0)}
+        disabled={index === 0}
+        title="First step (Home)"
+      >
         <IconStart />
       </button>
       <button
@@ -47,7 +52,12 @@ export function Player({ index, total, playing, speed, onSeek, onTogglePlay, onS
       >
         <IconNext />
       </button>
-      <button className="step-btn" onClick={() => onSeek(last)} disabled={index >= last} title="Last step (End)">
+      <button
+        className="step-btn edge-btn"
+        onClick={() => onSeek(last)}
+        disabled={index >= last}
+        title="Last step (End)"
+      >
         <IconEnd />
       </button>
       <button className="step-btn" onClick={onRestart} title="Restart (R)">
@@ -56,7 +66,11 @@ export function Player({ index, total, playing, speed, onSeek, onTogglePlay, onS
 
       <div className="scrub">
         <div className="scrub-track">
-          <div className="scrub-fill" style={{ width: `calc(${pct}% - ${(pct / 100) * 16}px + 8px)` }} />
+          {/* Track the thumb's centre; --thumb is bigger on touch layouts. */}
+          <div
+            className="scrub-fill"
+            style={{ width: `calc(${pct}% - ${pct / 100} * var(--thumb) + var(--thumb) / 2)` }}
+          />
           <input
             type="range"
             min={0}

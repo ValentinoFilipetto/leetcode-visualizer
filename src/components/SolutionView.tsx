@@ -22,7 +22,16 @@ function buildSteps(code: string, tracer: Tracer | undefined, exampleIndex: numb
   return { steps: recorder.steps, input: example.input };
 }
 
-export function SolutionView({ solution, tracer }: { solution: Solution; tracer: Tracer | undefined }) {
+export function SolutionView({
+  solution,
+  tracer,
+  showCode,
+}: {
+  solution: Solution;
+  tracer: Tracer | undefined;
+  /** Mobile only: swaps the stage for the Java source. Both panels show side by side on desktop. */
+  showCode: boolean;
+}) {
   const [exampleIndex, setExampleIndex] = useState(0);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -105,15 +114,15 @@ export function SolutionView({ solution, tracer }: { solution: Solution; tracer:
   if (!tracer || steps.length === 0) {
     return (
       <>
-        <div className="workspace">
+        <div className={`workspace${showCode ? ' show-code' : ''}`}>
           <CodePanel code={solution.code} activeLines={[]} />
           <div className="panel">
             <div className="panel-head">Visualization</div>
             <div className="missing-tracer">
               <p style={{ fontSize: 15, color: 'var(--text)' }}>No trace for this solution yet.</p>
               <p>
-                The Java source is on the left. Add a tracer in <code>src/tracers/</code> to bring this one to
-                life — see <code>CONTRIBUTING.md</code>.
+                Add a tracer in <code>src/tracers/</code> to bring this one to life — see{' '}
+                <code>CONTRIBUTING.md</code>.
               </p>
             </div>
           </div>
@@ -206,7 +215,7 @@ export function SolutionView({ solution, tracer }: { solution: Solution; tracer:
         )}
       </div>
 
-      <div className="workspace">
+      <div className={`workspace${showCode ? ' show-code' : ''}`}>
         <CodePanel code={solution.code} activeLines={step?.lines ?? []} />
         {vizPanel}
       </div>
