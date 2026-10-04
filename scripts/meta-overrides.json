@@ -154,6 +154,11 @@
     "slug": "range-sum-query-immutable",
     "number": 303
   },
+  "hard/backtracking/NQueens": {
+    "title": "N-Queens",
+    "slug": "n-queens",
+    "number": 51
+  },
   "hard/linkedlists/MergeKSortedLinkedLists": {
     "title": "Merge k Sorted Lists",
     "slug": "merge-k-sorted-lists",
@@ -183,6 +188,11 @@
     "title": "Combination Sum II",
     "slug": "combination-sum-ii",
     "number": 40
+  },
+  "medium/backtracking/Combinations": {
+    "title": "Combinations",
+    "slug": "combinations",
+    "number": 77
   },
   "medium/backtracking/GenerateParentheses": {
     "title": "Generate Parentheses",
@@ -513,5 +523,10 @@
     "title": "Matchsticks to Square",
     "slug": "matchsticks-to-square",
     "number": 473
+  },
+  "medium/backtracking/PartitionToKEqualSumSubsets": {
+    "title": "Partition to K Equal Sum Subsets",
+    "slug": "partition-to-k-equal-sum-subsets",
+    "number": 698
   }
 }

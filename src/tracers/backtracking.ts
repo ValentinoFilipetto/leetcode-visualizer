@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, DecisionTreeNodeViz, TextViz, Tracer, Visual } from '../types';
-import { arr, chars, chips, decisionTree, frames, grid, list, mapOf } from './helpers';
+import { arr, chars, chips, decisionTree, frames, grid, list, mapOf, setOf } from './helpers';
 
 /** Results panel: every finished branch, with the newest one highlighted. */
 function resultsViz(title: string, items: string[]): TextViz {
@@ -934,29 +934,50 @@ function wordSearch(r: Recorder, input: string[][], word: string) {
 
 /* ── Matchsticks to Square ────────────────────────────────────────────────── */
 
-function matchsticksToSquare(r: Recorder, matchsticks: number[]) {
+function matchsticksToSquare(r: Recorder, input: number[]) {
+  const sum = input.reduce((a, b) => a + b, 0);
+  let sticks = input.slice();
   const sides = [0, 0, 0, 0];
-  const sum = matchsticks.reduce((a, b) => a + b, 0);
   let uid = 0;
   const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `ms${uid++}`, label, edgeLabel, children: [] });
   const root = mkNode('[0,0,0,0]');
 
-  const view = (): Visual[] => [decisionTree(root, { title: 'decision tree  (one child per side the next stick could join)' })];
+  const sticksViz = (i: number, state: CellState = 'active') =>
+    arr(sticks, {
+      title: 'matchsticks',
+      states: sticks.map((_, k) => (k === i ? state : k < i ? ('done' as CellState) : undefined)),
+      pointers: i >= 0 && i < sticks.length ? [{ name: 'i', index: i }] : [],
+    });
+  const view = (i: number, state?: CellState): Visual[] => [
+    sticksViz(i, state),
+    decisionTree(root, { title: 'decision tree  (one child per side the next stick could join)' }),
+  ];
 
   r.step({
     at: 'int sum = Arrays.stream(matchsticks).sum();',
-    explain: `Total matchstick length is ${sum}. A square needs four equal sides, so the total must divide evenly by 4.`,
+    explain: `Total matchstick length is ${sum}. Every stick must be used, so each of the four sides has to be exactly a quarter of it.`,
     vars: { sum },
-    visuals: view(),
+    visuals: view(-1),
   });
 
+  sticks = sticks.sort((a, b) => a - b).reverse();
+  r.step({
+    at: ['Arrays.sort(matchsticks);', 'reverse(matchsticks);'],
+    explain:
+      'Sort longest first. A long stick fits on fewer sides, so placing it early makes a dead end overflow near the root, where pruning it cuts away the whole subtree below.',
+    vars: { matchsticks: list(sticks) },
+    visuals: view(-1),
+  });
+
+  const length = Math.floor(sum / 4);
   if (sum % 4 !== 0) {
     root.label = `${sum} ✗`;
     root.state = 'error';
     r.step({
-      at: 'if (sum % 4 != 0) return false;',
-      explain: `${sum} is not divisible by 4 — no arrangement of these sticks can form a square, so return immediately without trying any.`,
-      visuals: view(),
+      at: ['int length = sum / 4;', 'if (sum % 4 != 0) return false;'],
+      explain: `${sum} is not divisible by 4, so four equal sides are impossible. Return before trying a single placement.`,
+      vars: { sum, length },
+      visuals: view(-1),
       tone: 'error',
       result: 'return false',
     });
@@ -964,59 +985,409 @@ function matchsticksToSquare(r: Recorder, matchsticks: number[]) {
   }
 
   r.step({
-    at: ['int[] sides = new int[4];', 'return dfs(matchsticks, sides, 0);'],
-    explain: `${sum} splits evenly into four sides of length ${sum / 4} — but the code never checks that directly. It just tries every stick on every side and hopes the four totals happen to end up equal once all sticks are placed.`,
-    visuals: view(),
+    at: ['int length = sum / 4;', 'if (sum % 4 != 0) return false;', 'int[] sides = new int[4];', 'return backtrack(matchsticks, sides, length, 0);'],
+    explain: `Each side must reach exactly ${length}. Place the sticks one at a time, trying each on every side that still has room for it.`,
+    vars: { sum, length },
+    visuals: view(-1),
   });
 
-  const dfs = (i: number, node: DecisionTreeNodeViz): boolean => {
-    if (i === matchsticks.length) {
+  const backtrack = (i: number, node: DecisionTreeNodeViz): boolean => {
+    if (i === sticks.length) {
       const ok = sides[0] === sides[1] && sides[1] === sides[2] && sides[2] === sides[3];
       node.label = `[${sides.join(',')}] ${ok ? '✓' : '✗'}`;
       node.state = ok ? 'success' : 'error';
       r.step({
-        at: ['if (i == matchsticks.length) {', 'return sides[0] == sides[1] && sides[1] == sides[2] && sides[2] == sides[3];'],
-        explain: `Every stick is placed. Sides are [${sides.join(', ')}] — ${ok ? 'all four equal, a square!' : 'not all equal, this arrangement fails.'}`,
-        visuals: view(),
+        at: ['if (i == matchsticks.length) {', 'return sides[0] == sides[1] &&', 'sides[1] == sides[2] &&', 'sides[2] == sides[3];'],
+        explain: ok
+          ? `Every stick is placed and the sides are [${sides.join(', ')}]. No side was allowed past ${length} and the total is 4 × ${length}, so all four must equal ${length}: a square.`
+          : `Every stick is placed, but the sides are [${sides.join(', ')}], which are not all equal.`,
+        vars: { i, sides: list(sides) },
+        visuals: view(i),
         tone: ok ? 'success' : 'error',
       });
       return ok;
     }
 
+    const stick = sticks[i];
     for (let j = 0; j < 4; j++) {
-      sides[j] += matchsticks[i];
-      const child = mkNode(`[${sides.join(',')}]`, `+${matchsticks[i]} → s${j}`);
+      if (sides[j] + stick > length) {
+        const pruned = mkNode(`s${j}: ${sides[j]}+${stick} > ${length}`, `+${stick} → s${j}`);
+        pruned.state = 'muted';
+        node.children!.push(pruned);
+        r.step({
+          at: 'if (sides[j] + matchsticks[i] <= length) {',
+          explain: `Stick ${stick} would push side ${j} to ${sides[j] + stick}, past ${length}. That can never become a square, so skip it without recursing.`,
+          vars: { i, j, stick, 'sides[j]': sides[j], length },
+          visuals: view(i, 'error'),
+          tone: 'warn',
+        });
+        continue;
+      }
+
+      sides[j] += stick;
+      const child = mkNode(`[${sides.join(',')}]`, `+${stick} → s${j}`);
       child.state = 'active';
       node.children!.push(child);
       r.step({
-        at: 'sides[j] += matchsticks[i];',
-        explain: `Try stick ${matchsticks[i]} (index ${i}) on side ${j}, making it ${sides[j]}.`,
-        vars: { i, j, stick: matchsticks[i], side: sides[j] },
-        visuals: view(),
+        at: ['sides[j] += matchsticks[i];', 'if (backtrack(matchsticks, sides, length, i + 1)) return true;'],
+        explain: `Stick ${stick} fits on side ${j} (now ${sides[j]} of ${length}). Recurse to place the next stick.`,
+        vars: { i, j, stick, 'sides[j]': sides[j], length },
+        visuals: view(i),
       });
-      if (dfs(i + 1, child)) return true;
+      if (backtrack(i + 1, child)) return true;
       if (child.state === 'active') child.state = 'done';
-      sides[j] -= matchsticks[i];
+      sides[j] -= stick;
       r.step({
         at: 'sides[j] -= matchsticks[i];',
-        explain: `Side ${j} didn't lead to a square — remove stick ${matchsticks[i]} again and try it on the next side. Nothing here remembers that side ${j} already failed with this stick, so equivalent side choices get re-explored on every call.`,
-        vars: { i, j, stick: matchsticks[i], side: sides[j] },
-        visuals: view(),
+        explain: `No square below side ${j}. Take stick ${stick} back off (side ${j} returns to ${sides[j]}) and try the next side.`,
+        vars: { i, j, stick, 'sides[j]': sides[j], length },
+        visuals: view(i, 'compare'),
         tone: 'warn',
       });
     }
+
+    node.state = 'error';
+    r.step({
+      at: 'return false;@2',
+      explain: `Stick ${stick} has no side left to go on, so this branch is a dead end. Report false to the caller.`,
+      vars: { i, stick, sides: list(sides) },
+      visuals: view(i, 'error'),
+      tone: 'error',
+    });
     return false;
   };
 
-  const found = dfs(0, root);
+  const found = backtrack(0, root);
   r.step({
-    at: 'return dfs(matchsticks, sides, 0);',
+    at: 'return backtrack(matchsticks, sides, length, 0);',
     explain: found
-      ? `A valid square arrangement exists: sides = [${sides.join(', ')}].`
-      : 'No arrangement of the sticks forms a square.',
-    visuals: view(),
+      ? `A square exists: each side is ${length} long.`
+      : 'Every placement either overflowed a side or got stuck, so no square can be made.',
+    visuals: view(found ? sticks.length : -1),
     tone: found ? 'success' : 'error',
     result: `return ${found}`,
+  });
+}
+
+/* ── Partition to K Equal Sum Subsets ─────────────────────────────────────── */
+
+function partitionKSubsets(r: Recorder, input: number[], k: number) {
+  const sum = input.reduce((a, b) => a + b, 0);
+  let nums = input.slice();
+  const subsets = new Array<number>(k).fill(0);
+  let uid = 0;
+  const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `pk${uid++}`, label, edgeLabel, children: [] });
+  const root = mkNode(`[${subsets.join(',')}]`);
+
+  const view = (i: number, state: CellState = 'active'): Visual[] => [
+    arr(nums, {
+      title: 'nums',
+      states: nums.map((_, x) => (x === i ? state : x < i ? ('done' as CellState) : undefined)),
+      pointers: i >= 0 && i < nums.length ? [{ name: 'i', index: i }] : [],
+    }),
+    decisionTree(root, { title: 'decision tree  (one child per subset the next number could join)' }),
+  ];
+
+  r.step({
+    at: 'int sum = Arrays.stream(nums).sum();',
+    explain: `The numbers add up to ${sum}. Every number must land in one of the ${k} subsets, so each subset has to sum to exactly ${sum} / ${k}.`,
+    vars: { sum, k },
+    visuals: view(-1),
+  });
+
+  if (sum % k !== 0) {
+    root.label = `${sum} ✗`;
+    root.state = 'error';
+    r.step({
+      at: 'if (sum % k != 0) return false;',
+      explain: `${sum} is not divisible by ${k}, so ${k} equal subsets are impossible. Return before trying a single placement.`,
+      vars: { sum, k },
+      visuals: view(-1),
+      tone: 'error',
+      result: 'return false',
+    });
+    return;
+  }
+
+  nums = nums.sort((a, b) => a - b).reverse();
+  const subsetSum = sum / k;
+  r.step({
+    at: ['if (sum % k != 0) return false;', 'Arrays.sort(nums);', 'reverse(nums);', 'int subsetSum = sum / k;'],
+    explain: `Each subset must reach ${subsetSum}. Sort longest first: a big number fits in fewer subsets, so a dead end overflows near the root, where pruning it removes the most work.`,
+    vars: { sum, k, subsetSum, nums: list(nums) },
+    visuals: view(-1),
+  });
+
+  r.step({
+    at: ['int[] subsets = new int[k];', 'return backtrack(nums, subsets, k, subsetSum, 0);'],
+    explain: `Start with ${k} empty subsets and place the numbers one at a time, trying each in every subset that still has room for it.`,
+    vars: { subsets: list(subsets), subsetSum },
+    visuals: view(-1),
+  });
+
+  const backtrack = (i: number, node: DecisionTreeNodeViz): boolean => {
+    if (i === nums.length) {
+      const ok = subsets.every((s) => s === subsetSum);
+      node.label = `[${subsets.join(',')}] ${ok ? '✓' : '✗'}`;
+      node.state = ok ? 'success' : 'error';
+      r.step({
+        at: ok
+          ? ['if (i == nums.length) {', 'if (subsets[j] != subsetSum) return false;', 'return true;@1']
+          : ['if (i == nums.length) {', 'if (subsets[j] != subsetSum) return false;'],
+        explain: ok
+          ? `Every number is placed and each subset sums to ${subsetSum}. None was allowed past ${subsetSum} and the total is ${k} × ${subsetSum}, so they had to come out equal.`
+          : `Every number is placed, but the subsets are [${subsets.join(', ')}], which are not all ${subsetSum}.`,
+        vars: { i, subsets: list(subsets) },
+        visuals: view(i),
+        tone: ok ? 'success' : 'error',
+      });
+      return ok;
+    }
+
+    const num = nums[i];
+    for (let j = 0; j < k; j++) {
+      if (subsets[j] + num > subsetSum) {
+        const pruned = mkNode(`s${j}: ${subsets[j]}+${num} > ${subsetSum}`, `+${num} → s${j}`);
+        pruned.state = 'muted';
+        node.children!.push(pruned);
+        r.step({
+          at: 'if (subsets[j] + nums[i] <= subsetSum) {',
+          explain: `${num} would push subset ${j} to ${subsets[j] + num}, past ${subsetSum}. That subset can never come back down, so skip it without recursing.`,
+          vars: { i, j, 'nums[i]': num, 'subsets[j]': subsets[j], subsetSum },
+          visuals: view(i, 'error'),
+          tone: 'warn',
+        });
+        continue;
+      }
+
+      subsets[j] += num;
+      const child = mkNode(`[${subsets.join(',')}]`, `+${num} → s${j}`);
+      child.state = 'active';
+      node.children!.push(child);
+      r.step({
+        at: ['subsets[j] += nums[i];', 'if (backtrack(nums, subsets, k, subsetSum, i + 1)) return true;'],
+        explain: `${num} fits in subset ${j} (now ${subsets[j]} of ${subsetSum}). Recurse to place the next number.`,
+        vars: { i, j, 'nums[i]': num, 'subsets[j]': subsets[j], subsetSum },
+        visuals: view(i),
+      });
+      if (backtrack(i + 1, child)) return true;
+      if (child.state === 'active') child.state = 'done';
+      subsets[j] -= num;
+      r.step({
+        at: 'subsets[j] -= nums[i];',
+        explain: `No valid partition below subset ${j}. Take ${num} back out (subset ${j} returns to ${subsets[j]}) and try the next subset.`,
+        vars: { i, j, 'nums[i]': num, 'subsets[j]': subsets[j], subsetSum },
+        visuals: view(i, 'compare'),
+        tone: 'warn',
+      });
+    }
+
+    node.state = 'error';
+    r.step({
+      at: 'return false;@3',
+      explain: `${num} has no subset left to go in, so this branch is a dead end. Report false to the caller.`,
+      vars: { i, 'nums[i]': num, subsets: list(subsets) },
+      visuals: view(i, 'error'),
+      tone: 'error',
+    });
+    return false;
+  };
+
+  const found = backtrack(0, root);
+  r.step({
+    at: 'return backtrack(nums, subsets, k, subsetSum, 0);',
+    explain: found
+      ? `The numbers split into ${k} subsets that each sum to ${subsetSum}.`
+      : `Every placement either overflowed a subset or got stuck, so no split into ${k} equal subsets exists.`,
+    visuals: view(found ? nums.length : -1),
+    tone: found ? 'success' : 'error',
+    result: `return ${found}`,
+  });
+}
+
+/* ── Combinations ─────────────────────────────────────────────────────────── */
+
+function combinations(r: Recorder, n: number, k: number) {
+  const res: number[][] = [];
+  const combination: number[] = [];
+  let uid = 0;
+  const mkNode = (label: string, edgeLabel?: string): DecisionTreeNodeViz => ({ id: `cb${uid++}`, label, edgeLabel, children: [] });
+  const root = mkNode('[]');
+
+  const view = (): Visual[] => [
+    decisionTree(root, { title: 'decision tree  (take i then leave it out, per node)' }),
+    resultsViz('res', res.map((c) => `[${c.join(', ')}]`)),
+  ];
+
+  r.step({
+    at: 'backtrack(1, n, k, new ArrayList<>());',
+    explain: `Each number from 1 to ${n} is either taken or left out, the same binary tree as Subsets. A leaf is kept only if it took exactly ${k} numbers.`,
+    vars: { n, k },
+    visuals: view(),
+  });
+
+  const backtrack = (i: number, node: DecisionTreeNodeViz) => {
+    if (i === n + 1) {
+      const ok = combination.length === k;
+      if (ok) res.push(combination.slice());
+      node.label = `[${combination.join(',')}] ${ok ? '✓' : '✗'}`;
+      node.state = ok ? 'success' : 'error';
+      r.step({
+        at: ok ? ['if (i == n + 1) {', 'if (combination.size() == k) {', 'res.add(new ArrayList<>(combination));'] : ['if (i == n + 1) {', 'if (combination.size() == k) {', 'return;'],
+        explain: ok
+          ? `All ${n} numbers are decided and exactly ${k} were taken, so record a copy of [${combination.join(', ')}]. The copy matters because the list keeps changing.`
+          : `All ${n} numbers are decided, but ${combination.length} were taken instead of ${k}. Nothing stopped this branch early, so it is only thrown away here at the leaf.`,
+        vars: { i, combination: list(combination), size: combination.length, k },
+        visuals: view(),
+        tone: ok ? 'success' : 'error',
+      });
+      return;
+    }
+
+    combination.push(i);
+    const takeNode = mkNode(`[${combination.join(',')}]`, `+${i}`);
+    takeNode.state = 'active';
+    node.children!.push(takeNode);
+    r.step({
+      at: ['combination.add(i);', 'backtrack(i + 1, n, k, combination);@1'],
+      explain: `Branch 1: take ${i}.`,
+      vars: { i, combination: list(combination) },
+      visuals: view(),
+    });
+    backtrack(i + 1, takeNode);
+    if (takeNode.state === 'active') takeNode.state = 'done';
+    combination.pop();
+
+    const skipNode = mkNode(`[${combination.join(',')}]`, `skip ${i}`);
+    skipNode.state = 'active';
+    node.children!.push(skipNode);
+    r.step({
+      at: ['combination.remove(combination.size() - 1);', 'backtrack(i + 1, n, k, combination);@2'],
+      explain: `Every combination containing ${i} along this path is done. Remove ${i} and branch again without it.`,
+      vars: { i, combination: list(combination) },
+      visuals: view(),
+      tone: 'warn',
+    });
+    backtrack(i + 1, skipNode);
+    if (skipNode.state === 'active') skipNode.state = 'done';
+  };
+
+  backtrack(1, root);
+  r.step({
+    at: 'return res;',
+    explain: `${res.length} ${res.length === 1 ? 'combination' : 'combinations'} of ${k} from ${n}, found by visiting all 2^${n} = ${2 ** n} leaves.`,
+    visuals: view(),
+    tone: 'success',
+    result: `return ${res.length} ${res.length === 1 ? 'combination' : 'combinations'}`,
+  });
+}
+
+/* ── N-Queens ─────────────────────────────────────────────────────────────── */
+
+function nQueens(r: Recorder, n: number) {
+  const board = Array.from({ length: n }, () => new Array<string>(n).fill('.'));
+  const col = new Set<number>();
+  const negDiag = new Set<number>();
+  const posDiag = new Set<number>();
+  const res: string[][] = [];
+  const labels = Array.from({ length: n }, (_, x) => String(x));
+
+  const attacked = (rr: number, cc: number) => col.has(cc) || negDiag.has(rr - cc) || posDiag.has(rr + cc);
+  const sorted = (s: Set<number>) => [...s].sort((a, b) => a - b);
+
+  const view = (cr: number, cc: number, state: CellState, solved = false): Visual[] => [
+    grid(board, {
+      title: 'board  (shaded cells are attacked by a queen already placed)',
+      rowLabels: labels,
+      colLabels: labels,
+      cursor: cr >= 0 && cr < n ? [cr, cc] : undefined,
+      states: board.map((row, rr) =>
+        row.map((v, c2) => {
+          if (rr === cr && c2 === cc) return state;
+          if (v === 'Q') return solved ? 'success' : 'done';
+          return attacked(rr, c2) ? 'muted' : undefined;
+        }),
+      ),
+    }),
+    setOf('col', sorted(col)),
+    setOf('negDiag  (r - c)', sorted(negDiag)),
+    setOf('posDiag  (r + c)', sorted(posDiag)),
+    resultsViz('res', res.map((b) => b.join(' / '))),
+  ];
+
+  r.step({
+    at: ['char[][] board = new char[n][n];', 'backtrack(0, board);'],
+    explain: `Two queens in the same row attack each other, so each of the ${n} rows gets exactly one. Go row by row, top to bottom, trying each column.`,
+    vars: { n },
+    visuals: view(-1, -1, 'idle'),
+  });
+
+  const backtrack = (rr: number) => {
+    if (rr === n) {
+      res.push(board.map((row) => row.join('')));
+      r.step({
+        at: ['if (r == board.length) {', 'res.add(new ArrayList<>());', 'res.get(res.size() - 1).add(new String(row));'],
+        explain: `A queen sits in all ${n} rows. Each one was only placed where nothing attacked it, so the board is a valid solution: copy it into res.`,
+        vars: { r: rr, solutions: res.length },
+        visuals: view(-1, -1, 'idle', true),
+        tone: 'success',
+      });
+      return;
+    }
+
+    for (let cc = 0; cc < n; cc++) {
+      if (attacked(rr, cc)) {
+        const why = col.has(cc)
+          ? `column ${cc} already has a queen`
+          : negDiag.has(rr - cc)
+            ? `the diagonal r - c = ${rr - cc} already has a queen`
+            : `the anti-diagonal r + c = ${rr + cc} already has a queen`;
+        r.step({
+          at: ['if (col.contains(c) ||', 'negDiag.contains(r - c) ||', 'posDiag.contains(r + c)) {', 'continue;'],
+          explain: `(${rr}, ${cc}) is attacked: ${why}. Every cell on a diagonal shares r - c, and every cell on an anti-diagonal shares r + c, so one set lookup decides it.`,
+          vars: { r: rr, c: cc, 'r - c': rr - cc, 'r + c': rr + cc },
+          visuals: view(rr, cc, 'error'),
+          tone: 'warn',
+        });
+        continue;
+      }
+
+      col.add(cc);
+      negDiag.add(rr - cc);
+      posDiag.add(rr + cc);
+      board[rr][cc] = 'Q';
+      r.step({
+        at: ['col.add(c);', 'negDiag.add(r - c);', 'posDiag.add(r + c);', "board[r][c] = 'Q';", 'backtrack(r + 1, board);'],
+        explain: `(${rr}, ${cc}) is safe. Place a queen and claim its column ${cc}, diagonal ${rr - cc} and anti-diagonal ${rr + cc}, then move on to row ${rr + 1}.`,
+        vars: { r: rr, c: cc, 'r - c': rr - cc, 'r + c': rr + cc },
+        visuals: view(rr, cc, 'active'),
+      });
+      backtrack(rr + 1);
+
+      col.delete(cc);
+      negDiag.delete(rr - cc);
+      posDiag.delete(rr + cc);
+      board[rr][cc] = '.';
+      r.step({
+        at: ['col.remove(c);', 'negDiag.remove(r - c);', 'posDiag.remove(r + c);', "board[r][c] = '.';"],
+        explain: `Every board with a queen at (${rr}, ${cc}) has been explored. Lift it and release its column and diagonals so the next column in row ${rr} can be tried.`,
+        vars: { r: rr, c: cc },
+        visuals: view(rr, cc, 'compare'),
+        tone: 'warn',
+      });
+    }
+  };
+
+  backtrack(0);
+  r.step({
+    at: 'return res;',
+    explain:
+      res.length > 0
+        ? `${res.length} distinct ways to place ${n} queens so that none attack each other.`
+        : `Every placement eventually left some row with no safe column, so no ${n}×${n} board works.`,
+    visuals: view(-1, -1, 'idle'),
+    tone: res.length > 0 ? 'success' : 'error',
+    result: `return ${res.length} solution${res.length === 1 ? '' : 's'}`,
   });
 }
 
@@ -1190,6 +1561,29 @@ export const backtrackingTracers: Record<string, Tracer> = {
         input: 'matchsticks = [1, 3, 4, 2, 2, 4]',
         run: (r) => matchsticksToSquare(r, [1, 3, 4, 2, 2, 4]),
       },
+    ],
+  },
+  'medium/backtracking/PartitionToKEqualSumSubsets': {
+    examples: [
+      {
+        label: 'nums = [4,3,2,3,5,2,1], k = 4 (found)',
+        input: 'nums = [4, 3, 2, 3, 5, 2, 1], k = 4',
+        run: (r) => partitionKSubsets(r, [4, 3, 2, 3, 5, 2, 1], 4),
+      },
+      { label: 'nums = [4,2,4,2,2], k = 2 (not found)', input: 'nums = [4, 2, 4, 2, 2], k = 2', run: (r) => partitionKSubsets(r, [4, 2, 4, 2, 2], 2) },
+      { label: 'nums = [1,2,3,4], k = 3 (sum not ÷3)', input: 'nums = [1, 2, 3, 4], k = 3', run: (r) => partitionKSubsets(r, [1, 2, 3, 4], 3) },
+    ],
+  },
+  'medium/backtracking/Combinations': {
+    examples: [
+      { label: 'n = 4, k = 2', input: 'n = 4, k = 2', run: (r) => combinations(r, 4, 2) },
+      { label: 'n = 3, k = 3', input: 'n = 3, k = 3', run: (r) => combinations(r, 3, 3) },
+    ],
+  },
+  'hard/backtracking/NQueens': {
+    examples: [
+      { label: 'n = 4 (2 solutions)', input: 'n = 4', run: (r) => nQueens(r, 4) },
+      { label: 'n = 3 (no solution)', input: 'n = 3', run: (r) => nQueens(r, 3) },
     ],
   },
   'medium/backtracking/SumOfAllSubsetsXORTotal': {
