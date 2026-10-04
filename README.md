@@ -9,6 +9,8 @@ live picture of the data structures: arrays with pointers, sliding windows, link
 graphs, grids, heaps, tries, stacks and intervals. Every step is a full snapshot, so you can scrub
 **backwards and forwards** freely.
 
+![N-Queens (n = 4) stepping through its backtracking search](./docs/preview.gif)
+
 ```
 pnpm install
 pnpm run extract    # read the Java repo -> src/data/solutions.generated.json
