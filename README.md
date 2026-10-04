@@ -94,6 +94,12 @@ A GitHub Actions workflow for Pages is included in `.github/workflows/deploy.yml
 See [CONTRIBUTING.md](./CONTRIBUTING.md) — a new solution in the Java repo needs `pnpm run extract`
 plus one tracer, and `pnpm run check` tells you exactly what is missing.
 
+With [Claude Code](https://claude.com/claude-code), `/sync-java-solutions` runs that whole loop:
+it pulls the Java repo, writes tracers for new solutions, fixes tracers whose Java source drifted,
+verifies them in a real browser (`pnpm run verify`), then commits and pushes. The skill lives in
+[`.claude/skills/sync-java-solutions/`](./.claude/skills/sync-java-solutions/SKILL.md); agent
+workflow rules are in [AGENTS.md](./AGENTS.md).
+
 ## Licence
 
 MIT.
