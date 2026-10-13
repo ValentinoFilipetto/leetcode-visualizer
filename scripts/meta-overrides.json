@@ -514,6 +514,36 @@
     "slug": "task-scheduler",
     "number": 621
   },
+  "medium/heaps/ReorganizeString": {
+    "title": "Reorganize String",
+    "slug": "reorganize-string",
+    "number": 767
+  },
+  "medium/heaps/SingleThreadedCPU": {
+    "title": "Single-Threaded CPU",
+    "slug": "single-threaded-cpu",
+    "number": 1834
+  },
+  "medium/heaps/LongestHappyString": {
+    "title": "Longest Happy String",
+    "slug": "longest-happy-string",
+    "number": 1405
+  },
+  "medium/heaps/CarPooling": {
+    "title": "Car Pooling",
+    "slug": "car-pooling",
+    "number": 1094
+  },
+  "medium/heaps/TopKFrequentWords": {
+    "title": "Top K Frequent Words",
+    "slug": "top-k-frequent-words",
+    "number": 692
+  },
+  "medium/heaps/SearchSuggestionSystem": {
+    "title": "Search Suggestions System",
+    "slug": "search-suggestions-system",
+    "number": 1268
+  },
   "medium/backtracking/PalindromePartitioning": {
     "title": "Palindrome Partitioning",
     "slug": "palindrome-partitioning",

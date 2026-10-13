@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, chars, chips, heap, list, mapOf } from './helpers';
+import { arr, chars, chips, heap, intervalsViz, list, mapOf } from './helpers';
 
 /**
  * A textbook binary heap, so the array layout shown in the visuals matches what
@@ -56,6 +56,34 @@ function ordinal(n: number): string {
   if (rest >= 11 && rest <= 13) return `${n}th`;
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 }
+
+/** Java's String.hashCode(), with the same 32-bit overflow. */
+function javaStringHash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return h;
+}
+
+/**
+ * The order a java.util.HashMap iterates its keys in (bucket by spread hash, then
+ * insertion order within a bucket), so heaps fed from entrySet() get offered the
+ * same sequence as in Java. `keys` must be in first-insertion order.
+ */
+function javaHashMapOrder<K>(keys: K[], hash: (k: K) => number): K[] {
+  let cap = 16;
+  while (keys.length > cap * 0.75) cap *= 2;
+  const bucket = (k: K) => {
+    const h = hash(k);
+    return (h ^ (h >>> 16)) & (cap - 1);
+  };
+  return keys
+    .map((k, i) => ({ k, i, b: bucket(k) }))
+    .sort((x, y) => x.b - y.b || x.i - y.i)
+    .map((x) => x.k);
+}
+
+/** Java String.compareTo: lexicographic by UTF-16 code unit, same as JS < on strings. */
+const compareStrings = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 const minHeap = () => new BinaryHeap<number>((a, b) => a - b);
 const maxHeap = () => new BinaryHeap<number>((a, b) => b - a);
@@ -502,6 +530,592 @@ function taskScheduler(r: Recorder, tasksInput: string, n: number) {
   });
 }
 
+/* ── Reorganize String ────────────────────────────────────────────────────── */
+
+function reorganizeString(r: Recorder, s: string) {
+  const letters = chars(s);
+  const frequencies = new Map<string, number>();
+  // [frequency, letter]
+  const h = new BinaryHeap<[number, string]>((a, b) => b[0] - a[0]);
+  let previous: [number, string] | null = null;
+  let res = '';
+
+  const fmt = ([f, c]: [number, string]) => `${c}×${f}`;
+  const view = (o: { i?: number; rootState?: CellState } = {}): Visual[] => [
+    arr(letters, {
+      title: 's',
+      states: letters.map((_, x) => (o.i === undefined ? undefined : x === o.i ? 'active' : x < o.i ? 'visited' : undefined)),
+    }),
+    mapOf('frequencies', [...frequencies]),
+    heap('maxHeap  (most frequent letter on top)', h.items.map(fmt), 'max', {
+      states: h.items.map((_, x) => (x === 0 ? o.rootState : undefined)),
+    }),
+    chips('previous  (sits out one turn)', previous ? [fmt(previous)] : [], { emptyHint: 'null' }),
+    arr(chars(res), { title: 'res' }),
+  ];
+
+  r.step({
+    at: 'PriorityQueue<int[]> maxHeap = new PriorityQueue<>(',
+    explain:
+      'Greedy idea: always place the most frequent letter that is allowed next. A max-heap hands it over in O(log k), and holding the just-used letter aside for one turn guarantees no two neighbours match.',
+    visuals: view(),
+  });
+
+  for (let i = 0; i < letters.length; i++) {
+    const c = letters[i];
+    frequencies.set(c, (frequencies.get(c) ?? 0) + 1);
+    r.step({
+      at: ['frequencies.computeIfAbsent(c, k -> 0);', 'frequencies.put(c, frequencies.get(c) + 1);'],
+      explain: `Count '${c}' — it has now appeared ${frequencies.get(c)} time(s).`,
+      vars: { c, count: frequencies.get(c) },
+      visuals: view({ i }),
+    });
+  }
+
+  for (const letter of javaHashMapOrder([...frequencies.keys()], (k) => k.charCodeAt(0))) {
+    const frequency = frequencies.get(letter)!;
+    h.offer([frequency, letter]);
+    r.step({
+      at: 'maxHeap.add(new int[] { frequency, letter });',
+      explain: `Push '${letter}' with frequency ${frequency}; the heap reorders so the most frequent letter is at the root.`,
+      vars: { letter, frequency },
+      visuals: view({ rootState: 'window' }),
+    });
+  }
+
+  while (h.size > 0) {
+    const current = h.poll();
+    res += current[1];
+    current[0]--;
+    r.step({
+      at: ['int[] current = maxHeap.poll();', 'res.append((char) current[1]);', 'current[0]--;'],
+      explain: `'${current[1]}' is the most frequent letter still allowed, so place it now — ${current[0]} left. The letter placed last turn is still held aside, so this one is guaranteed to differ from it.`,
+      vars: { current: current[1], remaining: current[0], res },
+      visuals: view(),
+      tone: 'success',
+    });
+
+    if (previous !== null && previous[0] > 0) {
+      h.offer(previous);
+      r.step({
+        at: ['if (previous != null && previous[0] > 0)', 'maxHeap.add(previous);'],
+        explain: `'${previous[1]}' has sat out a turn and still has ${previous[0]} left, so it is allowed back into the heap.`,
+        vars: { previous: previous[1], remaining: previous[0] },
+        visuals: view({ rootState: 'window' }),
+      });
+    } else if (previous !== null) {
+      r.step({
+        at: 'if (previous != null && previous[0] > 0)',
+        explain: `'${previous[1]}' is used up, so it does not go back into the heap.`,
+        vars: { previous: previous[1] },
+        visuals: view(),
+      });
+    }
+
+    previous = current;
+    r.step({
+      at: 'previous = current;',
+      explain: `'${current[1]}' is held aside for one turn so the next letter is guaranteed to differ.`,
+      vars: { previous: current[1] },
+      visuals: view({ rootState: 'active' }),
+    });
+  }
+
+  const ok = res.length === s.length;
+  r.step({
+    at: 'return res.length() == s.length() ? res.toString() : "";',
+    explain: ok
+      ? 'Every letter was placed without two equal neighbours.'
+      : `The heap ran dry while '${previous![1]}' still had ${previous![0]} left waiting — it has no other letter to separate it, so no valid arrangement exists.`,
+    vars: { 'res.length()': res.length, 's.length()': s.length },
+    visuals: view(),
+    tone: ok ? 'success' : 'error',
+    result: `return "${ok ? res : ''}"`,
+  });
+}
+
+/* ── Single-Threaded CPU ──────────────────────────────────────────────────── */
+
+function singleThreadedCPU(r: Recorder, tasks: number[][]) {
+  type Task = [number, number, number]; // [index, enqueueTime, processingTime]
+  const queue = new BinaryHeap<Task>((a, b) => a[1] - b[1]);
+  const minHeap_ = new BinaryHeap<Task>((a, b) => a[2] - b[2] || a[0] - b[0]);
+  const res: number[] = [];
+  let time = 1;
+
+  const fmt = ([i, e, p]: Task) => `T${i} e${e} p${p}`;
+  const view = (o: { queueState?: CellState; heapState?: CellState; running?: number } = {}): Visual[] => [
+    arr(tasks.map((_, i) => `T${i}`), {
+      title: 'tasks',
+      labels: tasks.map(([e, p]) => `e${e} p${p}`),
+      indexed: false,
+      states: tasks.map((_, i) => (i === o.running ? 'active' : res.includes(i) ? 'done' : undefined)),
+    }),
+    heap('queue  (not enqueued yet — earliest enqueueTime on top)', queue.items.map(fmt), 'min', {
+      states: queue.items.map((_, x) => (x === 0 ? o.queueState : undefined)),
+    }),
+    heap('minHeap  (available now — shortest, then lowest index, on top)', minHeap_.items.map(fmt), 'min', {
+      states: minHeap_.items.map((_, x) => (x === 0 ? o.heapState : undefined)),
+    }),
+    chips('res', res.map((i) => `T${i}`), { emptyHint: '[]' }),
+  ];
+
+  r.step({
+    at: 'PriorityQueue<int[]> queue = new PriorityQueue<>(',
+    explain:
+      'Two heaps split the tasks by whether they exist yet: one ordered by arrival time, one ordered by what the CPU actually prefers among the arrived tasks (shortest first, then lowest index).',
+    visuals: view(),
+  });
+
+  for (let i = 0; i < tasks.length; i++) queue.offer([i, tasks[i][0], tasks[i][1]]);
+  r.step({
+    at: 'queue.offer(new int[]{ i, task[0], task[1] });',
+    explain: 'Every task enters the arrival queue tagged with its original index — the index is both the answer and the tie-breaker.',
+    visuals: view({ queueState: 'window' }),
+  });
+
+  while (queue.size > 0 || minHeap_.size > 0) {
+    if (minHeap_.size === 0) {
+      const next = queue.peek()[1];
+      const jumped = next > time;
+      time = Math.max(time, next);
+      r.step({
+        at: ['if (minHeap.isEmpty()) {', 'time = Math.max(time, queue.peek()[1]);'],
+        explain: jumped
+          ? `The CPU is idle and nothing has arrived yet — skip straight to t${time}, when the next task shows up.`
+          : `Nothing is waiting, but the next task arrived at t${next}, before the CPU freed up — time stays at t${time}.`,
+        vars: { time },
+        visuals: view({ queueState: 'active' }),
+        tone: jumped ? 'warn' : undefined,
+      });
+    }
+
+    const moved: number[] = [];
+    while (queue.size > 0 && queue.peek()[1] <= time) {
+      const t = queue.poll();
+      minHeap_.offer(t);
+      moved.push(t[0]);
+    }
+    if (moved.length > 0) {
+      r.step({
+        at: ['while (!queue.isEmpty() && queue.peek()[1] <= time) {', 'minHeap.offer(queue.poll());'],
+        explain: `By t${time}, ${moved.map((i) => `T${i}`).join(', ')} ${moved.length === 1 ? 'has' : 'have'} arrived, so ${moved.length === 1 ? 'it moves' : 'they move'} into the available heap.`,
+        vars: { time, moved: moved.length },
+        visuals: view({ heapState: 'window' }),
+      });
+    }
+
+    const task = minHeap_.poll();
+    res.push(task[0]);
+    r.step({
+      at: ['int[] task = minHeap.poll();', 'res[index] = task[0];', 'time += task[2];'],
+      explain: `Of the available tasks, T${task[0]} has the shortest processing time${minHeap_.size > 0 ? ' (ties go to the lower index)' : ''}. It runs from t${time} to t${time + task[2]}, and nothing can interrupt it.`,
+      vars: { index: res.length - 1, task: task[0], time: time + task[2] },
+      visuals: view({ running: task[0] }),
+      tone: 'success',
+    });
+    time += task[2];
+  }
+
+  r.step({
+    at: 'return res;',
+    explain: 'Every task has run; res is the order the CPU picked them in.',
+    visuals: view(),
+    tone: 'success',
+    result: `return ${list(res)}`,
+  });
+}
+
+/* ── Longest Happy String ─────────────────────────────────────────────────── */
+
+function longestHappyString(r: Recorder, a: number, b: number, c: number) {
+  // [letter, frequency]
+  const h = new BinaryHeap<[string, number]>((x, y) => y[1] - x[1]);
+  let res = '';
+
+  const fmt = ([l, f]: [string, number]) => `${l}×${f}`;
+  const view = (o: { rootState?: CellState; held?: [string, number]; last?: CellState } = {}): Visual[] => [
+    heap('maxHeap  (letters left, most plentiful on top)', h.items.map(fmt), 'max', {
+      states: h.items.map((_, x) => (x === 0 ? o.rootState : undefined)),
+    }),
+    chips('polled', o.held ? [fmt(o.held)] : [], { emptyHint: '—' }),
+    arr(chars(res), {
+      title: 'res',
+      states: chars(res).map((_, x) => (x === res.length - 1 ? o.last : undefined)),
+    }),
+  ];
+
+  r.step({
+    at: 'PriorityQueue<int[]> maxHeap = new PriorityQueue<>(',
+    explain:
+      'Spend the most plentiful letter whenever possible — the scarce letters are what break up runs, so they should be saved for when they are needed.',
+    vars: { a, b, c },
+    visuals: view(),
+  });
+
+  if (a > 0) h.offer(['a', a]);
+  if (b > 0) h.offer(['b', b]);
+  if (c > 0) h.offer(['c', c]);
+  r.step({
+    at: ["if (a > 0) maxHeap.offer(new int[] { 'a', a });", "if (b > 0) maxHeap.offer(new int[] { 'b', b });", "if (c > 0) maxHeap.offer(new int[] { 'c', c });"],
+    explain: 'Only letters with a non-zero budget enter the heap.',
+    visuals: view({ rootState: 'window' }),
+  });
+
+  const canAppend = (cur: string) => res.length < 2 || cur !== res[res.length - 1] || cur !== res[res.length - 2];
+
+  while (h.size > 0) {
+    const first = h.poll();
+
+    if (canAppend(first[0])) {
+      res += first[0];
+      first[1]--;
+      if (first[1] > 0) h.offer(first);
+      r.step({
+        at: ['int[] first = maxHeap.poll();', 'if (canAppend(res, first)) {', 'res.append((char) first[0]);', 'if (first[1] > 0) maxHeap.offer(first);'],
+        explain:
+          first[1] > 0
+            ? `'${first[0]}' is the most plentiful and would not make three in a row, so append it and put it back with ${first[1]} left.`
+            : `'${first[0]}' is the most plentiful and would not make three in a row; that was its last copy, so it leaves the heap.`,
+        vars: { letter: first[0], left: first[1], res },
+        visuals: view({ last: 'success' }),
+        tone: 'success',
+      });
+      continue;
+    }
+
+    r.step({
+      at: ['int[] first = maxHeap.poll();', 'if (canAppend(res, first)) {', 'current[0] != res.charAt(res.length() - 2);'],
+      explain: `res already ends in '${first[0]}${first[0]}', so a third '${first[0]}' would break the rule even though it is the most plentiful.`,
+      vars: { letter: first[0], left: first[1], res },
+      visuals: view({ held: first }),
+      tone: 'warn',
+    });
+
+    if (h.size === 0) {
+      r.step({
+        at: 'if (maxHeap.isEmpty()) break;',
+        explain: `Only '${first[0]}' is left and nothing can separate it from the run — the string cannot grow any further.`,
+        vars: { leftover: `${first[0]}×${first[1]}` },
+        visuals: view({ held: first }),
+        tone: 'error',
+      });
+      break;
+    }
+
+    const second = h.poll();
+    h.offer(first);
+    res += second[0];
+    second[1]--;
+    if (second[1] > 0) h.offer(second);
+    r.step({
+      at: ['int[] second = maxHeap.poll();', 'maxHeap.offer(first);@2', 'res.append((char) second[0]);', 'if (second[1] > 0) maxHeap.offer(second);'],
+      explain: `Spend the runner-up '${second[0]}' instead to break the run (${second[1]} left), and return '${first[0]}' to the heap untouched — it will be allowed again next turn.`,
+      vars: { letter: second[0], left: second[1], res },
+      visuals: view({ last: 'success' }),
+      tone: 'success',
+    });
+  }
+
+  r.step({
+    at: 'return res.toString();',
+    explain: `The longest string with no three equal letters in a row has length ${res.length}.`,
+    vars: { length: res.length },
+    visuals: view(),
+    tone: 'success',
+    result: `return "${res}"`,
+  });
+}
+
+/* ── Car Pooling ──────────────────────────────────────────────────────────── */
+
+function carPooling(r: Recorder, trips: number[][], capacity: number) {
+  type Trip = [number, number, number, number]; // [numPassengers, from, to, original index]
+  const queue = new BinaryHeap<Trip>((a, b) => a[1] - b[1]);
+  const currentRide = new BinaryHeap<Trip>((a, b) => a[2] - b[2]);
+  const status: (CellState | undefined)[] = trips.map(() => undefined);
+  let currentLoad = 0;
+  let currentPosition = 0;
+
+  const fmt = ([p, f, t]: Trip) => `${p}p ${f}→${t}`;
+  const maxTo = Math.max(...trips.map((t) => t[2]));
+  const view = (o: { queueState?: CellState; rideState?: CellState } = {}): Visual[] => [
+    intervalsViz(
+      'trips  (blue = in the car, done = dropped off)',
+      trips.map(([p, f, t], i) => ({ start: f, end: t, label: `${p}p`, state: status[i] })),
+      { min: 0, max: maxTo },
+    ),
+    heap('queue  (waiting — nearest pickup on top)', queue.items.map(fmt), 'min', {
+      states: queue.items.map((_, x) => (x === 0 ? o.queueState : undefined)),
+    }),
+    heap('currentRide  (in the car — earliest drop-off on top)', currentRide.items.map(fmt), 'min', {
+      states: currentRide.items.map((_, x) => (x === 0 ? o.rideState : undefined)),
+    }),
+  ];
+  const vars = () => ({ currentPosition, currentLoad, capacity });
+
+  r.step({
+    at: 'PriorityQueue<int[]> queue = new PriorityQueue<>(',
+    explain:
+      'Only pickups and drop-offs change the load, so instead of driving kilometre by kilometre the car jumps from one pickup point to the next.',
+    vars: vars(),
+    visuals: view(),
+  });
+
+  trips.forEach(([p, f, t], i) => queue.offer([p, f, t, i]));
+  r.step({
+    at: 'Arrays.stream(trips).forEach(queue::offer);',
+    explain: 'Every trip waits in a min-heap keyed by its pickup point.',
+    vars: vars(),
+    visuals: view({ queueState: 'window' }),
+  });
+
+  while (queue.size > 0) {
+    currentPosition = queue.peek()[1];
+    r.step({
+      at: 'currentPosition = queue.peek()[1];',
+      explain: `The nearest pickup is at ${currentPosition} — jump there directly.`,
+      vars: vars(),
+      visuals: view({ queueState: 'active' }),
+    });
+
+    while (currentRide.size > 0 && currentPosition >= currentRide.peek()[2]) {
+      const trip = currentRide.poll();
+      currentLoad -= trip[0];
+      status[trip[3]] = 'done';
+      r.step({
+        at: ['while (!currentRide.isEmpty() && currentPosition >= currentRide.peek()[2]) {', 'currentLoad -= currentRide.poll()[0];'],
+        explain: `The ${trip[0]} passenger(s) going to ${trip[2]} have arrived by ${currentPosition}, so they get out before anyone new gets in — that frees ${trip[0]} seat(s).`,
+        vars: vars(),
+        visuals: view({ rideState: 'done' }),
+      });
+    }
+
+    while (queue.size > 0 && currentPosition === queue.peek()[1]) {
+      const next = queue.peek();
+      if (next[0] + currentLoad > capacity) {
+        status[next[3]] = 'error';
+        r.step({
+          at: ['while (!queue.isEmpty() && currentPosition == queue.peek()[1]) {', 'if (queue.peek()[0] + currentLoad > capacity) return false;'],
+          explain: `${next[0]} more passenger(s) would make ${next[0] + currentLoad}, over the capacity of ${capacity} — and nobody else gets out here, so the trip is impossible.`,
+          vars: { ...vars(), wouldBe: next[0] + currentLoad },
+          visuals: view({ queueState: 'error' }),
+          tone: 'error',
+          result: 'return false',
+        });
+        return;
+      }
+      currentLoad += next[0];
+      currentRide.offer(queue.poll());
+      status[next[3]] = 'active';
+      r.step({
+        at: ['currentLoad += queue.peek()[0];', 'currentRide.offer(queue.poll());'],
+        explain: `Pick up ${next[0]} passenger(s) heading to ${next[2]} — the load becomes ${currentLoad} of ${capacity}.`,
+        vars: vars(),
+        visuals: view({ rideState: 'window' }),
+        tone: 'success',
+      });
+    }
+  }
+
+  r.step({
+    at: 'return true;',
+    explain: 'Every pickup fit. Those still in the car only ever get out, so the load can no longer exceed capacity.',
+    vars: vars(),
+    visuals: view(),
+    tone: 'success',
+    result: 'return true',
+  });
+}
+
+/* ── Top K Frequent Words ─────────────────────────────────────────────────── */
+
+function topKFrequentWords(r: Recorder, words: string[], k: number) {
+  const frequenciesMap = new Map<string, number>();
+  const h = new BinaryHeap<string>(
+    (a, b) => frequenciesMap.get(a)! - frequenciesMap.get(b)! || compareStrings(b, a),
+  );
+  let res: string[] = [];
+
+  const fmt = (w: string) => `${w}×${frequenciesMap.get(w)}`;
+  const view = (o: { i?: number; rootState?: CellState; key?: string } = {}): Visual[] => [
+    arr(words, {
+      title: 'words',
+      states: words.map((_, x) => (o.i === undefined ? undefined : x === o.i ? 'active' : x < o.i ? 'visited' : undefined)),
+    }),
+    mapOf('frequenciesMap', [], {
+      entries: [...frequenciesMap].map(([key, value]) => ({ key, value, state: key === o.key ? ('active' as CellState) : undefined })),
+    }),
+    heap(`minHeap  (the best ${k} so far, weakest on top)`, h.items.map(fmt), 'min', {
+      states: h.items.map((_, x) => (x === 0 ? o.rootState : undefined)),
+    }),
+  ];
+
+  r.step({
+    at: 'Map<String, Integer> frequenciesMap = new HashMap<>();',
+    explain: 'First count every word, then keep only the k strongest with a size-k heap.',
+    vars: { k },
+    visuals: view(),
+  });
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    frequenciesMap.set(word, (frequenciesMap.get(word) ?? 0) + 1);
+    r.step({
+      at: ['frequenciesMap.computeIfAbsent(word, key -> 0);', 'frequenciesMap.put(word, frequenciesMap.get(word) + 1);'],
+      explain: `"${word}" has now been seen ${frequenciesMap.get(word)} time(s).`,
+      vars: { word, count: frequenciesMap.get(word) },
+      visuals: view({ i, key: word }),
+    });
+  }
+
+  r.step({
+    at: 'PriorityQueue<String> minHeap = new PriorityQueue<>(',
+    explain:
+      'The root must be the weakest candidate: lowest frequency, and among equal frequencies the lexicographically LARGEST word (it would rank last in the answer). Hence the reversed tie-breaker.',
+    vars: { k },
+    visuals: view(),
+  });
+
+  for (const word of javaHashMapOrder([...frequenciesMap.keys()], javaStringHash)) {
+    h.offer(word);
+    r.step({
+      at: 'minHeap.offer(e.getKey());',
+      explain: `Offer "${word}" (frequency ${frequenciesMap.get(word)}).`,
+      vars: { word, frequency: frequenciesMap.get(word), size: h.size },
+      visuals: view({ key: word, rootState: 'window' }),
+    });
+    if (h.size > k) {
+      const removed = h.poll();
+      r.step({
+        at: 'if (minHeap.size() > k) minHeap.poll();@2',
+        explain: `${k + 1} candidates is one too many — evict the weakest, "${removed}" (frequency ${frequenciesMap.get(removed)}). Each heap operation stays O(log k).`,
+        vars: { removed, size: h.size },
+        visuals: view({ rootState: 'error' }),
+        tone: 'warn',
+      });
+    }
+  }
+
+  while (h.size > 0) res.push(h.poll());
+  r.step({
+    at: 'while (!minHeap.isEmpty()) res.add(minHeap.poll());',
+    explain: 'Draining a min-heap yields the weakest first — the exact reverse of the order the answer wants.',
+    visuals: [chips('res', res)],
+  });
+
+  res = res.slice().reverse();
+  r.step({
+    at: 'Collections.reverse(res);',
+    explain: 'Reverse once: most frequent first, ties in alphabetical order.',
+    visuals: [chips('res', res)],
+    tone: 'success',
+    result: `return [${res.map((w) => `"${w}"`).join(', ')}]`,
+  });
+}
+
+/* ── Search Suggestions System ────────────────────────────────────────────── */
+
+function searchSuggestions(r: Recorder, products: string[], searchWord: string) {
+  const res: string[][] = [];
+
+  const resViz = (activeRow?: number): Visual => ({
+    kind: 'text',
+    title: 'res',
+    emptyHint: '[]',
+    lines: res.map((row, i) => ({
+      text: `${searchWord.slice(0, i + 1)}: [${row.join(', ')}]`,
+      state: i === activeRow ? ('active' as CellState) : undefined,
+    })),
+  });
+
+  r.step({
+    at: 'List<List<String>> res = new ArrayList<>();',
+    explain:
+      'For every prefix of the search word, keep at most 3 matching products. A max-heap of size 3 throws out the lexicographically largest match as soon as a fourth one arrives, so nothing ever needs a full sort.',
+    vars: { searchWord },
+    visuals: [arr(products, { title: 'products' }), resViz()],
+  });
+
+  for (let i = 0; i < searchWord.length; i++) {
+    const prefix = searchWord.slice(0, i + 1);
+    res.push([]);
+    const h = new BinaryHeap<string>((a, b) => compareStrings(b, a));
+    const matched = new Set<number>();
+
+    const view = (j: number, state: CellState | undefined, rootState?: CellState): Visual[] => [
+      arr(products, {
+        title: `products  (prefix "${prefix}")`,
+        states: products.map((_, x) =>
+          x === j ? state : x < j ? (matched.has(x) ? ('success' as CellState) : ('muted' as CellState)) : undefined,
+        ),
+        pointers: j >= 0 && j < products.length ? [{ name: 'product', index: j }] : [],
+      }),
+      heap('maxHeap  (≤ 3 matches, largest on top)', h.items, 'max', {
+        states: h.items.map((_, x) => (x === 0 ? rootState : undefined)),
+      }),
+      resViz(i),
+    ];
+
+    r.step({
+      at: ['String prefix = searchWord.substring(0, i + 1);', 'res.add(new ArrayList<>());'],
+      explain: `Prefix "${prefix}": start a fresh max-heap and scan every product.`,
+      vars: { i, prefix },
+      visuals: view(-1, undefined),
+    });
+
+    for (let j = 0; j < products.length; j++) {
+      const product = products[j];
+      const matches = product.startsWith(prefix);
+      if (matches) {
+        matched.add(j);
+        h.offer(product);
+      }
+      r.step({
+        at: 'if (product.startsWith(prefix)) maxHeap.offer(product);',
+        explain: matches ? `"${product}" starts with "${prefix}" — offer it.` : `"${product}" does not start with "${prefix}" — skip it.`,
+        vars: { prefix, product, size: h.size },
+        visuals: view(j, matches ? 'active' : 'error', matches ? 'window' : undefined),
+      });
+      if (h.size > 3) {
+        const removed = h.poll();
+        r.step({
+          at: 'if (maxHeap.size() > 3) maxHeap.poll();',
+          explain: `Four candidates — evict the lexicographically largest, "${removed}"; it can never be among the 3 smallest.`,
+          vars: { removed, size: h.size },
+          visuals: view(j, 'active', 'error'),
+          tone: 'warn',
+        });
+      }
+    }
+
+    while (h.size > 0) res[i].push(h.poll());
+    r.step({
+      at: 'while (!maxHeap.isEmpty()) res.get(i).add(maxHeap.poll());',
+      explain: 'Draining the max-heap yields the matches largest first.',
+      vars: { prefix },
+      visuals: view(products.length, undefined),
+    });
+
+    res[i].reverse();
+    r.step({
+      at: 'Collections.reverse(res.get(i));',
+      explain: res[i].length > 0 ? `Reverse to get the suggestions for "${prefix}" in alphabetical order.` : `No product starts with "${prefix}", so its suggestion list is empty.`,
+      vars: { prefix },
+      visuals: view(products.length, undefined),
+      tone: 'success',
+    });
+  }
+
+  r.step({
+    at: 'return res;',
+    explain: 'One suggestion list per typed character.',
+    visuals: [resViz()],
+    tone: 'success',
+    result: `return [${res.map((row) => `[${row.map((p) => `"${p}"`).join(',')}]`).join(', ')}]`,
+  });
+}
+
 /* ── Registry ─────────────────────────────────────────────────────────────── */
 
 export const heapTracers: Record<string, Tracer> = {
@@ -565,6 +1179,69 @@ export const heapTracers: Record<string, Tracer> = {
             ['follow', 1, 2],
             ['feed', 1],
           ]),
+      },
+    ],
+  },
+  'medium/heaps/ReorganizeString': {
+    examples: [
+      { label: 's = "aab"', input: 's = "aab"', run: (r) => reorganizeString(r, 'aab') },
+      { label: 's = "aaabbc"', input: 's = "aaabbc"', run: (r) => reorganizeString(r, 'aaabbc') },
+      { label: 's = "aaab" (impossible)', input: 's = "aaab"', run: (r) => reorganizeString(r, 'aaab') },
+    ],
+  },
+  'medium/heaps/SingleThreadedCPU': {
+    examples: [
+      { label: 'tasks = [[1,2],[2,4],[3,2],[4,1]]', input: 'tasks = [[1,2],[2,4],[3,2],[4,1]]', run: (r) => singleThreadedCPU(r, [[1, 2], [2, 4], [3, 2], [4, 1]]) },
+      {
+        label: 'all arrive at once',
+        input: 'tasks = [[7,10],[7,12],[7,5],[7,4],[7,2]]',
+        run: (r) => singleThreadedCPU(r, [[7, 10], [7, 12], [7, 5], [7, 4], [7, 2]]),
+      },
+      { label: 'idle gap', input: 'tasks = [[1,1],[5,3],[5,2]]', run: (r) => singleThreadedCPU(r, [[1, 1], [5, 3], [5, 2]]) },
+    ],
+  },
+  'medium/heaps/LongestHappyString': {
+    examples: [
+      { label: 'a = 1, b = 1, c = 7', input: 'a = 1, b = 1, c = 7', run: (r) => longestHappyString(r, 1, 1, 7) },
+      { label: 'a = 7, b = 1, c = 0', input: 'a = 7, b = 1, c = 0', run: (r) => longestHappyString(r, 7, 1, 0) },
+      { label: 'a = 2, b = 2, c = 1', input: 'a = 2, b = 2, c = 1', run: (r) => longestHappyString(r, 2, 2, 1) },
+    ],
+  },
+  'medium/heaps/CarPooling': {
+    examples: [
+      { label: 'capacity = 4 (too small)', input: 'trips = [[2,1,5],[3,3,7]], capacity = 4', run: (r) => carPooling(r, [[2, 1, 5], [3, 3, 7]], 4) },
+      {
+        label: 'drop-off frees seats',
+        input: 'trips = [[2,1,5],[3,5,7],[1,2,6],[2,7,9]], capacity = 4',
+        run: (r) => carPooling(r, [[2, 1, 5], [3, 5, 7], [1, 2, 6], [2, 7, 9]], 4),
+      },
+    ],
+  },
+  'medium/heaps/TopKFrequentWords': {
+    examples: [
+      {
+        label: 'k = 2',
+        input: 'words = ["i","love","leetcode","i","love","coding"], k = 2',
+        run: (r) => topKFrequentWords(r, ['i', 'love', 'leetcode', 'i', 'love', 'coding'], 2),
+      },
+      {
+        label: 'k = 3, ties broken alphabetically',
+        input: 'words = ["the","day","is","sunny","the","the","sunny","is"], k = 3',
+        run: (r) => topKFrequentWords(r, ['the', 'day', 'is', 'sunny', 'the', 'the', 'sunny', 'is'], 3),
+      },
+    ],
+  },
+  'medium/heaps/SearchSuggestionSystem': {
+    examples: [
+      {
+        label: 'searchWord = "mouse"',
+        input: 'products = ["mobile","mouse","moneypot","monitor","mousepad"], searchWord = "mouse"',
+        run: (r) => searchSuggestions(r, ['mobile', 'mouse', 'moneypot', 'monitor', 'mousepad'], 'mouse'),
+      },
+      {
+        label: 'no match after a prefix',
+        input: 'products = ["bags","baggage","banner","box"], searchWord = "bat"',
+        run: (r) => searchSuggestions(r, ['bags', 'baggage', 'banner', 'box'], 'bat'),
       },
     ],
   },
