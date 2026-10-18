@@ -84,32 +84,47 @@
     "slug": "valid-parentheses",
     "number": 20
   },
-  "easy/tree/BalancedBinaryTree": {
+  "easy/trees/BalancedBinaryTree": {
     "title": "Balanced Binary Tree",
     "slug": "balanced-binary-tree",
     "number": 110
   },
-  "easy/tree/DiameterOfBinaryTree": {
+  "easy/trees/BinaryTreeInorderTraversal": {
+    "title": "Binary Tree Inorder Traversal",
+    "slug": "binary-tree-inorder-traversal",
+    "number": 94
+  },
+  "easy/trees/BinaryTreePostorderTraversal": {
+    "title": "Binary Tree Postorder Traversal",
+    "slug": "binary-tree-postorder-traversal",
+    "number": 145
+  },
+  "easy/trees/BinaryTreePreorderTraversal": {
+    "title": "Binary Tree Preorder Traversal",
+    "slug": "binary-tree-preorder-traversal",
+    "number": 144
+  },
+  "easy/trees/DiameterOfBinaryTree": {
     "title": "Diameter of Binary Tree",
     "slug": "diameter-of-binary-tree",
     "number": 543
   },
-  "easy/tree/InvertBinaryTree": {
+  "easy/trees/InvertBinaryTree": {
     "title": "Invert Binary Tree",
     "slug": "invert-binary-tree",
     "number": 226
   },
-  "easy/tree/MaximumDepthOfBinaryTree": {
+  "easy/trees/MaximumDepthOfBinaryTree": {
     "title": "Maximum Depth of Binary Tree",
     "slug": "maximum-depth-of-binary-tree",
     "number": 104
   },
-  "easy/tree/SameTree": {
+  "easy/trees/SameTree": {
     "title": "Same Tree",
     "slug": "same-tree",
     "number": 100
   },
-  "easy/tree/SubtreeOfAnotherTree": {
+  "easy/trees/SubtreeOfAnotherTree": {
     "title": "Subtree of Another Tree",
     "slug": "subtree-of-another-tree",
     "number": 572
@@ -429,32 +444,32 @@
     "slug": "min-stack",
     "number": 155
   },
-  "medium/tree/BinaryTreeLevelOrderTraversal": {
+  "medium/trees/BinaryTreeLevelOrderTraversal": {
     "title": "Binary Tree Level Order Traversal",
     "slug": "binary-tree-level-order-traversal",
     "number": 102
   },
-  "medium/tree/BinaryTreeRightSideView": {
+  "medium/trees/BinaryTreeRightSideView": {
     "title": "Binary Tree Right Side View",
     "slug": "binary-tree-right-side-view",
     "number": 199
   },
-  "medium/tree/CountGoodNodesInBinaryTree": {
+  "medium/trees/CountGoodNodesInBinaryTree": {
     "title": "Count Good Nodes in Binary Tree",
     "slug": "count-good-nodes-in-binary-tree",
     "number": 1448
   },
-  "medium/tree/KthSmallestIntegerInBST": {
+  "medium/trees/KthSmallestIntegerInBST": {
     "title": "Kth Smallest Element in a BST",
     "slug": "kth-smallest-element-in-a-bst",
     "number": 230
   },
-  "medium/tree/LowestCommonAncestorInBinarySearchTree": {
+  "medium/trees/LowestCommonAncestorInBinarySearchTree": {
     "title": "Lowest Common Ancestor of a Binary Search Tree",
     "slug": "lowest-common-ancestor-of-a-binary-search-tree",
     "number": 235
   },
-  "medium/tree/ValidateBinarySearchTree": {
+  "medium/trees/ValidateBinarySearchTree": {
     "title": "Validate Binary Search Tree",
     "slug": "validate-binary-search-tree",
     "number": 98

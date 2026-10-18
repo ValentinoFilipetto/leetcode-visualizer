@@ -235,44 +235,59 @@ function balancedTree(r: Recorder, values: (number | null)[]) {
 
   const dfs = (n: TNode | null): [number, number] => {
     if (!n) {
-      return [1, 0];
+      return [0, 1];
     }
     stack.push(`dfs(${n.val})`);
     r.step({
-      at: ['int[] left = dfs(root.left);', 'int[] right = dfs(root.right);'],
-      explain: `Ask both subtrees of ${n.val} for their [balanced, height] pair.`,
+      at: ['int[] resLeft = dfs(root.left);', 'int[] resRight = dfs(root.right);'],
+      explain: `Ask both subtrees of ${n.val} for their [height, isBalanced] pair — a null child answers [0, 1].`,
       vars: { node: n.val },
       visuals: [tv('tree', root, { states: { [n.id]: 'active' }, badges }), stack.viz()],
     });
-    const left = dfs(n.left);
-    const right = dfs(n.right);
-    const balanced = left[0] === 1 && right[0] === 1 && Math.abs(left[1] - right[1]) <= 1;
-    const height = 1 + Math.max(left[1], right[1]);
-    badges[n.id] = `${balanced ? '✓' : '✗'} h${height}`;
+    const resLeft = dfs(n.left);
+    const resRight = dfs(n.right);
+    let isBalanced = 1;
+    const childUnbalanced = resLeft[1] === 0 || resRight[1] === 0;
+    if (childUnbalanced) isBalanced = 0;
+    const diff = Math.abs(resLeft[0] - resRight[0]);
+    if (diff > 1) isBalanced = 0;
+    const heigth = 1 + Math.max(resLeft[0], resRight[0]);
+    badges[n.id] = `h${heigth} ${isBalanced ? '✓' : '✗'}`;
     stack.pop();
+    const why = childUnbalanced
+      ? 'a subtree below is already unbalanced, so this one cannot be balanced either'
+      : diff > 1
+        ? 'the heights differ by more than 1'
+        : 'both subtrees are balanced and their heights differ by at most 1';
     r.step({
-      at: ['boolean balanced = ((left[0] == 1) && (right[0] == 1)) && Math.abs(left[1] - right[1]) <= 1;', 'return new int[]{balanced ? 1 : 0, 1 + Math.max(left[1], right[1])};'],
-      explain: `Node ${n.val}: subtree heights ${left[1]} and ${right[1]} differ by ${Math.abs(left[1] - right[1])} → ${balanced ? 'balanced' : 'NOT balanced'}. Height is ${height}.`,
-      vars: { node: n.val, leftHeight: left[1], rightHeight: right[1], balanced },
-      visuals: [tv('tree', root, { states: { [n.id]: balanced ? 'done' : 'error' }, badges }), stack.viz()],
-      tone: balanced ? 'neutral' : 'error',
+      at: [
+        'if (resLeft[1] == 0 || resRight[1] == 0) isBalanced = 0;',
+        'if (Math.abs(resLeft[0] - resRight[0]) > 1) isBalanced = 0;',
+        'int heigth = 1 + Math.max(resLeft[0], resRight[0]);',
+        'return new int[] { heigth, isBalanced };',
+      ],
+      explain: `Node ${n.val}: subtree heights ${resLeft[0]} and ${resRight[0]} → ${isBalanced ? 'balanced' : 'NOT balanced'}, because ${why}. Its height is ${heigth}.`,
+      vars: { node: n.val, 'resLeft[0]': resLeft[0], 'resRight[0]': resRight[0], isBalanced, heigth },
+      visuals: [tv('tree', root, { states: { [n.id]: isBalanced ? 'done' : 'error' }, badges }), stack.viz()],
+      tone: isBalanced ? 'neutral' : 'error',
     });
-    return [balanced ? 1 : 0, height];
+    return [heigth, isBalanced];
   };
 
   r.step({
-    at: 'private int[] dfs(TreeNode root) {',
+    at: 'int[] res = dfs(root);',
     explain:
-      'One post-order pass returns two facts per node: whether its subtree is balanced, and how tall it is. No shared mutable state is needed.',
+      'One post-order pass returns two facts per node: how tall its subtree is, and whether it is balanced. No shared mutable state is needed.',
     visuals: [tv('tree', root), stack.viz()],
   });
   const res = dfs(root);
   r.step({
-    at: 'return dfs(root)[0] == 1;',
-    explain: res[0] === 1 ? 'Every node’s subtrees differ in height by at most 1.' : 'Some node had subtrees differing by more than 1.',
+    at: 'return res[1] == 1;',
+    explain: res[1] === 1 ? 'Every node’s subtrees differ in height by at most 1.' : 'Some node had subtrees differing by more than 1, and that verdict propagated up to the root.',
+    vars: { 'res[0]': res[0], 'res[1]': res[1] },
     visuals: [tv('tree', root, { badges })],
-    tone: res[0] === 1 ? 'success' : 'error',
-    result: `return ${res[0] === 1}`,
+    tone: res[1] === 1 ? 'success' : 'error',
+    result: `return ${res[1] === 1}`,
   });
 }
 
@@ -282,49 +297,128 @@ function diameter(r: Recorder, values: (number | null)[]) {
   const root = tbuild(values);
   const badges: Record<string, string> = {};
   const stack = new CallStack();
-  let best = 0;
+  let currMax = 0;
 
-  const dfs = (n: TNode | null): number => {
-    if (!n) return 0;
+  const dfs = (n: TNode): number => {
     stack.push(`dfs(${n.val})`);
     r.step({
-      at: ['int left = dfs(root.left, diameter);', 'int right = dfs(root.right, diameter);'],
-      explain: `Measure both subtrees of ${n.val}.`,
-      vars: { node: n.val, 'diameter[0]': best },
+      at: ['int maxDepthLeft = root.left == null ? 0 : 1 + dfs(root.left);', 'int maxDepthRight = root.right == null ? 0 : 1 + dfs(root.right);'],
+      explain: `How many edges reach down from ${n.val} on each side? A missing child contributes 0; a present one contributes 1 edge plus however deep it goes.`,
+      vars: { node: n.val, currMax },
       visuals: [tv('tree', root, { states: { [n.id]: 'active' }, badges }), stack.viz()],
     });
-    const left = dfs(n.left);
-    const right = dfs(n.right);
-    const through = left + right;
-    const improved = through > best;
-    best = Math.max(best, through);
-    const height = 1 + Math.max(left, right);
-    badges[n.id] = `h${height}`;
+    const maxDepthLeft = n.left === null ? 0 : 1 + dfs(n.left);
+    const maxDepthRight = n.right === null ? 0 : 1 + dfs(n.right);
+    const through = maxDepthLeft + maxDepthRight;
+    const improved = through > currMax;
+    currMax = Math.max(currMax, through);
+    const ret = Math.max(maxDepthLeft, maxDepthRight);
+    badges[n.id] = `↓${ret}`;
     stack.pop();
     r.step({
-      at: ['diameter[0] = Math.max(diameter[0], left + right);', 'return 1 + Math.max(left, right);'],
-      explain: `A path through ${n.val} is ${left} + ${right} = ${through} edges.${improved ? ' That is the longest so far.' : ''} Upwards, ${n.val} can only offer one side, so it returns 1 + max(${left}, ${right}) = ${height}.`,
-      vars: { node: n.val, left, right, 'diameter[0]': best, returns: height },
+      at: ['currMax = Math.max(currMax, maxDepthLeft + maxDepthRight);', 'return Math.max(maxDepthLeft, maxDepthRight);'],
+      explain: `The longest path bending at ${n.val} is ${maxDepthLeft} + ${maxDepthRight} = ${through} edges.${improved ? ' That is the longest so far.' : ''} Upwards, a path can only continue through one side, so ${n.val} returns max(${maxDepthLeft}, ${maxDepthRight}) = ${ret}.`,
+      vars: { node: n.val, maxDepthLeft, maxDepthRight, currMax, returns: ret },
       visuals: [tv('tree', root, { states: { [n.id]: improved ? 'success' : 'done' }, badges }), stack.viz()],
       tone: improved ? 'success' : 'neutral',
     });
-    return height;
+    return ret;
   };
 
   r.step({
-    at: 'int[] diameter = new int[1];',
+    at: 'int currMax = 0;',
     explain:
-      'The diameter may not pass through the root, so a single mutable maximum is kept while the recursion reports heights upwards.',
+      'The diameter may not pass through the root, so a field keeps the best path seen anywhere while the recursion reports depths upwards.',
     visuals: [tv('tree', root), stack.viz()],
   });
-  dfs(root);
+  if (root) dfs(root);
   r.step({
-    at: 'return diameter[0];',
-    explain: `The longest path between any two nodes has ${best} edges.`,
-    vars: { 'diameter[0]': best },
+    at: 'return currMax;',
+    explain: `The longest path between any two nodes has ${currMax} edges.`,
+    vars: { currMax },
     visuals: [tv('tree', root, { badges })],
     tone: 'success',
-    result: `return ${best}`,
+    result: `return ${currMax}`,
+  });
+}
+
+/* ── Binary Tree Preorder / Inorder / Postorder Traversal ─────────────────── */
+
+type DfsOrder = 'pre' | 'in' | 'post';
+
+function traversal(r: Recorder, values: (number | null)[], order: DfsOrder) {
+  const root = tbuild(values);
+  const stack = new CallStack();
+  const res: number[] = [];
+  const done: Record<string, CellState> = {};
+  const name = { pre: 'preorder', in: 'inorder', post: 'postorder' }[order];
+  const why = {
+    pre: 'a node is recorded before either of its subtrees',
+    in: 'a node is recorded after everything on its left and before everything on its right',
+    post: 'a node is recorded only once both of its subtrees are finished',
+  }[order];
+
+  const view = (cur?: TNode, state: CellState = 'active'): Visual[] => [
+    tv('tree', root, { states: cur ? { ...done, [cur.id]: state } : { ...done } }),
+    arr(res.slice(), { title: 'res' }),
+    stack.viz(),
+  ];
+
+  const visit = (n: TNode) => {
+    res.push(n.val);
+    done[n.id] = 'done';
+    r.step({
+      at: 'res.add(root.val);',
+      explain: `Record ${n.val} now — in ${name} order ${why}.`,
+      vars: { node: n.val },
+      visuals: view(n, 'success'),
+      tone: 'success',
+    });
+  };
+
+  const descend = (n: TNode, side: 'left' | 'right') => {
+    const child = n[side];
+    r.step({
+      at: `dfs(root.${side});`,
+      explain: child ? `Go down into ${n.val}'s ${side} child, ${child.val}.` : `${n.val} has no ${side} child — the call will return immediately.`,
+      vars: { node: n.val },
+      visuals: view(n),
+    });
+    dfs(child, `${n.val}.${side}`);
+  };
+
+  const dfs = (n: TNode | null, label: string) => {
+    if (!n) {
+      stack.push('dfs(null)');
+      r.step({
+        at: 'if (root == null) return;',
+        explain: `${label} is null — nothing to record, return to the caller.`,
+        visuals: view(),
+      });
+      stack.pop();
+      return;
+    }
+    stack.push(`dfs(${n.val})`);
+    if (order === 'pre') visit(n);
+    descend(n, 'left');
+    if (order === 'in') visit(n);
+    descend(n, 'right');
+    if (order === 'post') visit(n);
+    stack.pop();
+  };
+
+  r.step({
+    at: 'dfs(root);',
+    explain: `A recursive DFS appends each value to res; where the add sits relative to the two recursive calls is all that makes it ${name}.`,
+    visuals: view(),
+  });
+  dfs(root, 'root');
+  r.step({
+    at: 'return res;',
+    explain: `Every node has been recorded exactly once, in ${name} order.`,
+    visuals: view(),
+    tone: 'success',
+    result: `return [${res.join(', ')}]`,
   });
 }
 
@@ -701,74 +795,92 @@ function validateBST(r: Recorder, values: (number | null)[]) {
 /* ── Registry ─────────────────────────────────────────────────────────────── */
 
 export const treeTracers: Record<string, Tracer> = {
-  'easy/tree/MaximumDepthOfBinaryTree': {
+  'easy/trees/MaximumDepthOfBinaryTree': {
     examples: [
       { label: '[3,9,20,null,null,15,7]', input: 'root = [3, 9, 20, null, null, 15, 7]', run: (r) => maxDepth(r, [3, 9, 20, null, null, 15, 7]) },
       { label: '[1,2]', input: 'root = [1, 2]', run: (r) => maxDepth(r, [1, 2]) },
     ],
   },
-  'easy/tree/SameTree': {
+  'easy/trees/BinaryTreePreorderTraversal': {
+    examples: [
+      { label: '[1,2,3,4,5,null,6]', input: 'root = [1, 2, 3, 4, 5, null, 6]', run: (r) => traversal(r, [1, 2, 3, 4, 5, null, 6], 'pre') },
+      { label: '[1,null,2,3]', input: 'root = [1, null, 2, 3]', run: (r) => traversal(r, [1, null, 2, 3], 'pre') },
+    ],
+  },
+  'easy/trees/BinaryTreeInorderTraversal': {
+    examples: [
+      { label: '[1,2,3,4,5,null,6]', input: 'root = [1, 2, 3, 4, 5, null, 6]', run: (r) => traversal(r, [1, 2, 3, 4, 5, null, 6], 'in') },
+      { label: '[1,null,2,3]', input: 'root = [1, null, 2, 3]', run: (r) => traversal(r, [1, null, 2, 3], 'in') },
+    ],
+  },
+  'easy/trees/BinaryTreePostorderTraversal': {
+    examples: [
+      { label: '[1,2,3,4,5,null,6]', input: 'root = [1, 2, 3, 4, 5, null, 6]', run: (r) => traversal(r, [1, 2, 3, 4, 5, null, 6], 'post') },
+      { label: '[1,null,2,3]', input: 'root = [1, null, 2, 3]', run: (r) => traversal(r, [1, null, 2, 3], 'post') },
+    ],
+  },
+  'easy/trees/SameTree': {
     examples: [
       { label: 'identical', input: 'p = [1, 2, 3], q = [1, 2, 3]', run: (r) => sameTree(r, [1, 2, 3], [1, 2, 3]) },
       { label: 'different values', input: 'p = [1, 2, 3], q = [1, 3, 2]', run: (r) => sameTree(r, [1, 2, 3], [1, 3, 2]) },
       { label: 'different shapes', input: 'p = [1, 2], q = [1, null, 2]', run: (r) => sameTree(r, [1, 2], [1, null, 2]) },
     ],
   },
-  'easy/tree/InvertBinaryTree': {
+  'easy/trees/InvertBinaryTree': {
     examples: [
       { label: '[4,2,7,1,3,6,9]', input: 'root = [4, 2, 7, 1, 3, 6, 9]', run: (r) => invertTree(r, [4, 2, 7, 1, 3, 6, 9]) },
       { label: '[1,2,3]', input: 'root = [1, 2, 3]', run: (r) => invertTree(r, [1, 2, 3]) },
     ],
   },
-  'easy/tree/BalancedBinaryTree': {
+  'easy/trees/BalancedBinaryTree': {
     examples: [
       { label: 'balanced', input: 'root = [3, 9, 20, null, null, 15, 7]', run: (r) => balancedTree(r, [3, 9, 20, null, null, 15, 7]) },
       { label: 'unbalanced', input: 'root = [1, 2, 2, 3, 3, null, null, 4, 4]', run: (r) => balancedTree(r, [1, 2, 2, 3, 3, null, null, 4, 4]) },
     ],
   },
-  'easy/tree/DiameterOfBinaryTree': {
+  'easy/trees/DiameterOfBinaryTree': {
     examples: [
       { label: '[1,2,3,4,5]', input: 'root = [1, 2, 3, 4, 5]', run: (r) => diameter(r, [1, 2, 3, 4, 5]) },
       { label: 'diameter misses the root', input: 'root = [1, 2, null, 3, 4, null, null, 5, 6]', run: (r) => diameter(r, [1, 2, null, 3, 4, null, null, 5, 6]) },
     ],
   },
-  'easy/tree/SubtreeOfAnotherTree': {
+  'easy/trees/SubtreeOfAnotherTree': {
     examples: [
       { label: 'is a subtree', input: 'root = [3, 4, 5, 1, 2], subRoot = [4, 1, 2]', run: (r) => subtree(r, [3, 4, 5, 1, 2], [4, 1, 2]) },
       { label: 'not a subtree', input: 'root = [3, 4, 5, 1, 2], subRoot = [4, 1, 3]', run: (r) => subtree(r, [3, 4, 5, 1, 2], [4, 1, 3]) },
     ],
   },
-  'medium/tree/BinaryTreeLevelOrderTraversal': {
+  'medium/trees/BinaryTreeLevelOrderTraversal': {
     examples: [
       { label: '[3,9,20,null,null,15,7]', input: 'root = [3, 9, 20, null, null, 15, 7]', run: (r) => levelOrder(r, [3, 9, 20, null, null, 15, 7]) },
       { label: '[1,2,3,4,5,6,7]', input: 'root = [1, 2, 3, 4, 5, 6, 7]', run: (r) => levelOrder(r, [1, 2, 3, 4, 5, 6, 7]) },
     ],
   },
-  'medium/tree/BinaryTreeRightSideView': {
+  'medium/trees/BinaryTreeRightSideView': {
     examples: [
       { label: '[1,2,3,null,5,null,4]', input: 'root = [1, 2, 3, null, 5, null, 4]', run: (r) => levelOrder(r, [1, 2, 3, null, 5, null, 4], true) },
       { label: '[1,2,3,4]', input: 'root = [1, 2, 3, 4]', run: (r) => levelOrder(r, [1, 2, 3, 4], true) },
     ],
   },
-  'medium/tree/CountGoodNodesInBinaryTree': {
+  'medium/trees/CountGoodNodesInBinaryTree': {
     examples: [
       { label: '[3,1,4,3,null,1,5]', input: 'root = [3, 1, 4, 3, null, 1, 5]', run: (r) => goodNodes(r, [3, 1, 4, 3, null, 1, 5]) },
       { label: '[3,3,null,4,2]', input: 'root = [3, 3, null, 4, 2]', run: (r) => goodNodes(r, [3, 3, null, 4, 2]) },
     ],
   },
-  'medium/tree/KthSmallestIntegerInBST': {
+  'medium/trees/KthSmallestIntegerInBST': {
     examples: [
       { label: 'k = 3', input: 'root = [5, 3, 6, 2, 4, null, null, 1], k = 3', run: (r) => kthSmallest(r, [5, 3, 6, 2, 4, null, null, 1], 3) },
       { label: 'k = 1', input: 'root = [3, 1, 4, null, 2], k = 1', run: (r) => kthSmallest(r, [3, 1, 4, null, 2], 1) },
     ],
   },
-  'medium/tree/LowestCommonAncestorInBinarySearchTree': {
+  'medium/trees/LowestCommonAncestorInBinarySearchTree': {
     examples: [
       { label: 'p = 2, q = 8', input: 'root = [6, 2, 8, 0, 4, 7, 9], p = 2, q = 8', run: (r) => lca(r, [6, 2, 8, 0, 4, 7, 9], 2, 8) },
       { label: 'p = 2, q = 4', input: 'root = [6, 2, 8, 0, 4, 7, 9], p = 2, q = 4', run: (r) => lca(r, [6, 2, 8, 0, 4, 7, 9], 2, 4) },
     ],
   },
-  'medium/tree/ValidateBinarySearchTree': {
+  'medium/trees/ValidateBinarySearchTree': {
     examples: [
       { label: 'valid BST', input: 'root = [5, 3, 8, 1, 4, 7, 9]', run: (r) => validateBST(r, [5, 3, 8, 1, 4, 7, 9]) },
       { label: 'invalid (deep violation)', input: 'root = [5, 1, 6, null, null, 4, 7]', run: (r) => validateBST(r, [5, 1, 6, null, null, 4, 7]) },
