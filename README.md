@@ -1,8 +1,8 @@
 # Algorithm Visualizer
 
 Interactive, step-by-step visualizations for **every solution** in
-[java-leetcode-solutions](https://github.com/ValentinoFilipetto/java-leetcode-solutions) —
-101 problems, 197 worked examples, ~2,350 recorded algorithm steps.
+[java-leetcode-solutions](https://github.com/ValentinoFilipetto/java-leetcode-solutions), each
+with a few worked examples.
 
 Pick a problem, press play (or tap `→`), and watch the Java source execute line by line next to a
 live picture of the data structures: arrays with pointers, sliding windows, linked lists, trees,
@@ -38,7 +38,7 @@ that records what the Java code does, step by step:
 ```
 src/
   data/solutions.generated.json   generated from the Java repo (committed, so the app is standalone)
-  tracers/                        one file per pattern, 101 tracers + a shared helper layer
+  tracers/                        one file per pattern, one tracer per solution + a shared helper layer
   trace/recorder.ts               collects steps, resolves Java source lines by content
   components/viz/                 the renderers: arrays, bars, grids, lists, trees, graphs, heaps…
   types.ts                        the vocabulary shared by tracers and renderers
@@ -58,12 +58,12 @@ r.step({
 });
 ```
 
-So when the Java repository changes, nothing silently breaks: `pnpm run check` replays all 197
-examples and fails loudly if a quoted line no longer exists, if a tracer throws, or if a solution
+So when the Java repository changes, nothing silently breaks: `pnpm run check` replays every
+example and fails loudly if a quoted line no longer exists, if a tracer throws, or if a solution
 has no tracer at all.
 
 ```
-pnpm run check       # 101/101 solutions traced · 197 examples · 2356 steps total
+pnpm run check       # replays every tracer; fails on drift or a missing tracer
 pnpm run typecheck
 pnpm run build
 ```

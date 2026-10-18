@@ -49,7 +49,7 @@ export function Sidebar({
         <div className="brand-mark">◎</div>
         <div>
           <div className="brand-title">Algorithm Visualizer</div>
-          <div className="brand-sub">{solutions.length} Java solutions</div>
+          <div className="brand-sub">LeetCode solutions in Java</div>
         </div>
       </div>
 
