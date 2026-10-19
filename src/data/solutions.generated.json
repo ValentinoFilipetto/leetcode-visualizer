@@ -338,13 +338,13 @@
       "difficulty": "easy",
       "category": "trees",
       "categoryLabel": "Trees",
-      "pattern": "Tree (DFS)",
+      "pattern": "Trees (DFS)",
       "time": "O(n)",
       "space": "O(n) for recursion stack.",
       "leetcodeSlug": "invert-binary-tree",
       "leetcodeNumber": 226,
       "sourcePath": "src/main/java/leetcode/solutions/easy/trees/InvertBinaryTree.java",
-      "code": "package leetcode.solutions.easy.trees;\n\nimport leetcode.solutions.types.TreeNode;\n\n/**\n * Pattern: Tree (DFS)\n * Time complexity: O(n)\n * Space complexity: O(n) for recursion stack.\n */\n\npublic class InvertBinaryTree {\n    public TreeNode invertTree(TreeNode root) {\n        if (root == null) return null;\n\n        TreeNode tmp = root.left;\n        root.left = root.right;\n        root.right = tmp;\n        root.left = this.invertTree(root.left);\n        root.right = this.invertTree(root.right);\n        return root;\n    }\n}"
+      "code": "package leetcode.solutions.easy.trees;\n\nimport leetcode.solutions.types.TreeNode;\n\n/**\n * Pattern: Trees (DFS)\n * Time complexity: O(n)\n * Space complexity: O(n) for recursion stack.\n */\n\npublic class InvertBinaryTree {\n    public TreeNode invertTree(TreeNode root) {\n        if (root == null) return null;\n\n        TreeNode tmp = root.left;\n        root.left = root.right;\n        root.right = tmp;\n        root.left = invertTree(root.left);\n        root.right = invertTree(root.right);\n        return root;\n    }\n}"
     },
     {
       "id": "easy/trees/MaximumDepthOfBinaryTree",
@@ -353,13 +353,13 @@
       "difficulty": "easy",
       "category": "trees",
       "categoryLabel": "Trees",
-      "pattern": "Tree (DFS)",
+      "pattern": "Trees (DFS)",
       "time": "O(n)",
       "space": "O(n), due to recursion stack.",
       "leetcodeSlug": "maximum-depth-of-binary-tree",
       "leetcodeNumber": 104,
       "sourcePath": "src/main/java/leetcode/solutions/easy/trees/MaximumDepthOfBinaryTree.java",
-      "code": "package leetcode.solutions.easy.trees;\n\nimport leetcode.solutions.types.TreeNode;\n\n/**\n * Pattern: Tree (DFS)\n * Time complexity: O(n)\n * Space complexity: O(n), due to recursion stack.\n */\n\npublic class MaximumDepthOfBinaryTree {\n    public int maxDepth(TreeNode root) {\n        if (root == null) return 0;\n        return 1 + Math.max(maxDepth(root.left), maxDepth(root.right));\n    }\n}"
+      "code": "package leetcode.solutions.easy.trees;\n\nimport leetcode.solutions.types.TreeNode;\n\n/**\n * Pattern: Trees (DFS)\n * Time complexity: O(n)\n * Space complexity: O(n), due to recursion stack.\n */\n\npublic class MaximumDepthOfBinaryTree {\n    public int maxDepth(TreeNode root) {\n        if (root == null) return 0;\n\n        return 1 + Math.max(maxDepth(root.left), maxDepth(root.right));\n    }\n}"
     },
     {
       "id": "easy/trees/SameTree",
@@ -383,13 +383,13 @@
       "difficulty": "easy",
       "category": "trees",
       "categoryLabel": "Trees",
-      "pattern": "Trees",
+      "pattern": "Trees (DFS)",
       "time": "O(n * m), where n is the size of root and m is the size of subRoot.",
       "space": "O(n)",
       "leetcodeSlug": "subtree-of-another-tree",
       "leetcodeNumber": 572,
       "sourcePath": "src/main/java/leetcode/solutions/easy/trees/SubtreeOfAnotherTree.java",
-      "code": "package leetcode.solutions.easy.trees;\n\nimport leetcode.solutions.types.TreeNode;\n\n/**\n * Pattern: Trees\n * Time complexity: O(n * m), where n is the size of root and m is the size of subRoot.\n * Space complexity: O(n)\n */\n\npublic class SubtreeOfAnotherTree {\n    public boolean isSubtree(TreeNode root, TreeNode subRoot) {\n        if (root == null && subRoot == null) return true;\n        if (root == null) return false;\n\n        return isSameTree(root, subRoot) || isSubtree(root.left, subRoot) || isSubtree(root.right, subRoot);\n    }\n\n    private boolean isSameTree(TreeNode p, TreeNode q) {\n        if (p == null && q == null) return true;\n        if (p == null || q == null) return false;\n\n        return p.val == q.val && isSameTree(p.left, q.left) && isSameTree(p.right, q.right);\n    }\n}"
+      "code": "package leetcode.solutions.easy.trees;\n\nimport leetcode.solutions.types.TreeNode;\n\n/**\n * Pattern: Trees (DFS)\n * Time complexity: O(n * m), where n is the size of root and m is the size of subRoot.\n * Space complexity: O(n)\n */\n\npublic class SubtreeOfAnotherTree {\n    public boolean isSubtree(TreeNode root, TreeNode subRoot) {\n        if (root == null && subRoot != null) return false;\n        \n        // If current trees are the same, return true immediately, otherwise check root's children against subRoot.\n        if (isSameTree(root, subRoot)) return true;\n        return isSubtree(root.left, subRoot) || isSubtree(root.right, subRoot);\n    }\n\n    private boolean isSameTree(TreeNode p, TreeNode q) {\n        if (p == null && q == null) return true;\n        if (p == null || q == null) return false;\n\n        return p.val == q.val && isSameTree(p.left, q.left) && isSameTree(p.right, q.right);\n    }\n}"
     },
     {
       "id": "easy/twopointers/MergeSortedArrays",

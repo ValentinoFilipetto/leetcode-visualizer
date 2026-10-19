@@ -196,7 +196,7 @@ function invertTree(r: Recorder, values: (number | null)[]) {
       visuals: [tv('tree', root, { states: { [n.id]: 'active' } }), stack.viz()],
     });
     r.step({
-      at: ['root.left = this.invertTree(root.left);', 'root.right = this.invertTree(root.right);'],
+      at: ['root.left = invertTree(root.left);', 'root.right = invertTree(root.right);'],
       explain: `Now invert both subtrees of ${n.val} recursively.`,
       visuals: [tv('tree', root, { states: { [n.id]: 'window' } }), stack.viz()],
     });
@@ -435,29 +435,40 @@ function subtree(r: Recorder, a: (number | null)[], b: (number | null)[]) {
   };
 
   const go = (n: TNode | null): boolean => {
-    if (!n) {
+    if (!n && subRoot) {
       r.step({
-        at: 'if (root == null) return false;',
-        explain: 'Ran off the end of the tree without a match on this branch.',
+        at: 'if (root == null && subRoot != null) return false;',
+        explain: 'Ran off the end of the tree on this branch — an empty tree cannot contain a non-empty subRoot.',
         visuals: [tv('root', root), tv('subRoot', subRoot)],
       });
       return false;
     }
     const matches = same(n, subRoot);
+    if (matches) {
+      r.step({
+        at: 'if (isSameTree(root, subRoot)) return true;',
+        explain: n ? `The subtree rooted at ${n.val} is identical to subRoot, so there is no need to look any deeper.` : 'Both trees are empty, and an empty tree trivially contains itself.',
+        vars: { node: n ? n.val : 'null', isSameTree: true },
+        visuals: [
+          tv('root', root, { states: n ? { [n.id]: 'success' } : {} }),
+          tv('subRoot', subRoot, { states: subRoot ? { [subRoot.id]: 'success' } : {} }),
+        ],
+        tone: 'success',
+      });
+      return true;
+    }
+    // isSameTree(null, non-null) is false, but that case already returned above, so n is non-null here.
+    const node = n as TNode;
     r.step({
-      at: 'return isSameTree(root, subRoot) || isSubtree(root.left, subRoot) || isSubtree(root.right, subRoot);',
-      explain: matches
-        ? `The subtree rooted at ${n.val} is identical to subRoot.`
-        : `The subtree rooted at ${n.val} differs from subRoot — try its children.`,
-      vars: { node: n.val, isSameTree: matches },
+      at: ['if (isSameTree(root, subRoot)) return true;', 'return isSubtree(root.left, subRoot) || isSubtree(root.right, subRoot);'],
+      explain: `The subtree rooted at ${node.val} differs from subRoot — but a copy could still start lower down, so try its left child, then its right.`,
+      vars: { node: node.val, isSameTree: false },
       visuals: [
-        tv('root', root, { states: { [n.id]: matches ? 'success' : 'compare' } }),
-        tv('subRoot', subRoot, { states: subRoot ? { [subRoot.id]: matches ? 'success' : 'active' } : {} }),
+        tv('root', root, { states: { [node.id]: 'compare' } }),
+        tv('subRoot', subRoot, { states: subRoot ? { [subRoot.id]: 'active' } : {} }),
       ],
-      tone: matches ? 'success' : 'neutral',
     });
-    if (matches) return true;
-    return go(n.left) || go(n.right);
+    return go(node.left) || go(node.right);
   };
 
   r.step({
@@ -467,7 +478,7 @@ function subtree(r: Recorder, a: (number | null)[], b: (number | null)[]) {
   });
   const answer = go(root);
   r.step({
-    at: 'return isSameTree(root, subRoot) || isSubtree(root.left, subRoot) || isSubtree(root.right, subRoot);',
+    at: answer ? 'if (isSameTree(root, subRoot)) return true;' : 'return isSubtree(root.left, subRoot) || isSubtree(root.right, subRoot);',
     explain: answer ? 'A matching subtree was found.' : 'No node of root starts a copy of subRoot.',
     visuals: [tv('root', root), tv('subRoot', subRoot)],
     tone: answer ? 'success' : 'error',
