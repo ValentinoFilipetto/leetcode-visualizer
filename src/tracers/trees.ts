@@ -491,28 +491,42 @@ function subtree(r: Recorder, a: (number | null)[], b: (number | null)[]) {
 function levelOrder(r: Recorder, values: (number | null)[], rightSideOnly = false) {
   const root = tbuild(values);
   const q: TNode[] = [];
-  const res: number[][] = [];
+  // Level order builds List<List<Integer>>; right side view a flat List<Integer>.
+  const levels: number[][] = [];
+  const view: number[] = [];
   const done: Record<string, CellState> = {};
 
   const resViz = (): Visual =>
     rightSideOnly
-      ? arr(res.map((lvl) => lvl[lvl.length - 1]), { title: 'res  (rightmost node of each level)' })
-      : chips('res', res.map((lvl) => `[${lvl.join(', ')}]`), { emptyHint: '[]' });
+      ? arr(view, { title: 'res  (rightmost node of each level)' })
+      : chips('res', levels.map((lvl) => `[${lvl.join(', ')}]`), { emptyHint: '[]' });
+  const resText = () => (rightSideOnly ? `[${view.join(', ')}]` : `[${levels.map((lvl) => `[${lvl.join(', ')}]`).join(', ')}]`);
 
-  if (root) q.push(root);
+  if (!root) {
+    r.step({
+      at: 'if (root == null) return res;',
+      explain: 'An empty tree has no levels.',
+      visuals: [tv('tree', root), resViz()],
+      tone: 'success',
+      result: 'return []',
+    });
+    return;
+  }
+
+  q.push(root);
   r.step({
-    at: 'if (root != null) queue.add(root);',
-    explain: 'Breadth-first search with a queue: one loop iteration handles exactly one level.',
-    visuals: [tv('tree', root, { states: root ? { [root.id]: 'active' } : {} }), queue('queue', q.map((n) => n.val)), resViz()],
+    at: 'queue.offer(root);',
+    explain: 'Breadth-first search with a queue: one pass of the outer loop handles exactly one level.',
+    visuals: [tv('tree', root, { states: { [root.id]: 'window' } }), queue('queue', q.map((n) => n.val)), resViz()],
   });
 
   while (q.length > 0) {
-    const level: number[] = [];
-    const queueSize = q.length;
+    const levelSize = q.length;
+    if (!rightSideOnly) levels.push([]);
     r.step({
-      at: 'int queueSize = queue.size();',
-      explain: `The queue holds exactly the ${queueSize} node(s) of this level — capture that size before adding children, otherwise levels bleed into each other.`,
-      vars: { queueSize, level: `[${level.join(', ')}]` },
+      at: rightSideOnly ? 'int levelSize = queue.size();' : ['int levelSize = queue.size();', 'res.add(new ArrayList<>());'],
+      explain: `The queue holds exactly the ${levelSize} node(s) of this level — capture that size before adding children, otherwise levels bleed into each other.${rightSideOnly ? '' : ' Open an empty list for the level.'}`,
+      vars: { levelSize },
       visuals: [
         tv('tree', root, { states: { ...done, ...Object.fromEntries(q.map((n) => [n.id, 'window' as CellState])) } }),
         queue('queue', q.map((n) => n.val)),
@@ -520,46 +534,53 @@ function levelOrder(r: Recorder, values: (number | null)[], rightSideOnly = fals
       ],
     });
 
-    for (let i = 0; i < queueSize; i++) {
+    for (let i = 0; i < levelSize; i++) {
       const n = q.shift()!;
-      level.push(n.val);
+      const last = i === levelSize - 1;
+      if (rightSideOnly) {
+        if (last) view.push(n.val);
+      } else {
+        levels[levels.length - 1].push(n.val);
+      }
       if (n.left) q.push(n.left);
       if (n.right) q.push(n.right);
       done[n.id] = 'visited';
+      const kids = [n.left, n.right].filter(Boolean).length;
       r.step({
-        at: ['TreeNode node = queue.poll();', 'level.add(node.val);', 'if (node.left != null) queue.add(node.left);'],
-        explain: `Take ${n.val} off the queue and enqueue its ${[n.left, n.right].filter(Boolean).length} child(ren).`,
-        vars: { node: n.val, level: `[${level.join(', ')}]`, queue: `[${q.map((x) => x.val).join(', ')}]` },
+        at: [
+          'TreeNode node = queue.poll();',
+          rightSideOnly ? 'if (i == levelSize - 1) res.add(node.val);' : 'res.get(res.size() - 1).add(node.val);',
+          'if (node.left != null) queue.offer(node.left);',
+          'if (node.right != null) queue.offer(node.right);',
+        ],
+        explain: rightSideOnly
+          ? last
+            ? `${n.val} is the last node of its level, so nothing hides it from the right — it goes into res. Enqueue its ${kids} child(ren).`
+            : `${n.val} is not the last node of its level; a node further right hides it. Enqueue its ${kids} child(ren) anyway — they may be visible lower down.`
+          : `Take ${n.val} off the queue, append it to the current level, and enqueue its ${kids} child(ren) for the next level.`,
+        vars: { i, levelSize, node: n.val, queue: `[${q.map((x) => x.val).join(', ')}]` },
         visuals: [
           tv('tree', root, {
-            states: { ...done, [n.id]: 'active', ...Object.fromEntries(q.map((x) => [x.id, 'window' as CellState])) },
+            states: {
+              ...done,
+              ...Object.fromEntries(q.map((x) => [x.id, 'window' as CellState])),
+              [n.id]: rightSideOnly && last ? 'success' : 'active',
+            },
           }),
           queue('queue', q.map((x) => x.val)),
           resViz(),
         ],
+        tone: rightSideOnly && last ? 'success' : 'neutral',
       });
     }
-
-    res.push(level);
-    r.step({
-      at: rightSideOnly ? 'res.add(level.get(level.size() - 1));' : 'res.add(level);',
-      explain: rightSideOnly
-        ? `From the right, only the last node of this level is visible: ${level[level.length - 1]}.`
-        : `Level ${res.length - 1} is complete: [${level.join(', ')}].`,
-      vars: { level: `[${level.join(', ')}]` },
-      visuals: [tv('tree', root, { states: done }), queue('queue', q.map((x) => x.val)), resViz()],
-      tone: 'success',
-    });
   }
 
   r.step({
-    at: 'return res;',
+    at: 'return res;@2',
     explain: 'The queue is empty, so every level has been visited.',
     visuals: [tv('tree', root), resViz()],
     tone: 'success',
-    result: rightSideOnly
-      ? `return [${res.map((lvl) => lvl[lvl.length - 1]).join(', ')}]`
-      : `return [${res.map((lvl) => `[${lvl.join(', ')}]`).join(', ')}]`,
+    result: `return ${resText()}`,
   });
 }
 
@@ -619,7 +640,7 @@ function kthSmallest(r: Recorder, values: (number | null)[], k: number) {
     if (!n) return;
     stack.push(`dfs(${n.val})`);
     r.step({
-      at: 'dfs(root.left, list);',
+      at: 'dfs(root.left);',
       explain: `At ${n.val}: everything smaller lives in the left subtree, so go there first.`,
       vars: { node: n.val },
       visuals: [tv('BST', root, { states: { ...states, [n.id]: 'active' } }), arr(out, { title: 'list' }), stack.viz()],
@@ -643,7 +664,7 @@ function kthSmallest(r: Recorder, values: (number | null)[], k: number) {
   };
 
   r.step({
-    at: 'private void dfs(TreeNode root, List<Integer> list) {',
+    at: 'private void dfs(TreeNode root) {',
     explain: 'In-order traversal of a BST visits values in increasing order, so the k-th value visited is the answer.',
     vars: { k },
     visuals: [tv('BST', root), arr(out, { title: 'list' }), stack.viz()],
@@ -666,8 +687,8 @@ function kthSmallest(r: Recorder, values: (number | null)[], k: number) {
 
 function lca(r: Recorder, values: (number | null)[], p: number, q: number) {
   const root = tbuild(values);
-  // Which `return root;` actually produced the answer — line 16 (the split
-  // case) or line 19 (one of the nodes is the ancestor itself).
+  // Which `return root;` actually produced the answer — the split case or the
+  // one where p or q is the ancestor itself.
   let answeredAt = 'return root;@1';
 
   const go = (n: TNode | null): number | null => {
@@ -675,7 +696,7 @@ function lca(r: Recorder, values: (number | null)[], p: number, q: number) {
     const split = (p < n.val && q > n.val) || (q < n.val && p > n.val);
     if (split) {
       r.step({
-        at: 'if ((p.val < root.val && q.val > root.val) || (q.val < root.val && p.val > root.val)) {',
+        at: 'if ((p.val < root.val && q.val > root.val) || (q.val < root.val && p.val > root.val)) return root;',
         explain: `${p} and ${q} sit on opposite sides of ${n.val}, so the paths to them split here — ${n.val} is the lowest common ancestor.`,
         vars: { 'root.val': n.val, p, q },
         visuals: [tv('BST', root, { states: { [n.id]: 'success' } })],
@@ -734,72 +755,272 @@ function lca(r: Recorder, values: (number | null)[], p: number, q: number) {
 function validateBST(r: Recorder, values: (number | null)[]) {
   const root = tbuild(values);
   const badges: Record<string, string> = {};
+  const states: Record<string, CellState> = {};
   const stack = new CallStack();
+  const show = (x: number) => (x === -Infinity ? '−∞' : x === Infinity ? '+∞' : String(x));
 
+  // Returns [max, min, isValid], like the Java long[] (null -> [MIN, MAX, 1]).
   const dfs = (n: TNode | null): [number, number, number] => {
-    if (!n) return [Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, 1];
+    if (!n) return [-Infinity, Infinity, 1];
     stack.push(`dfs(${n.val})`);
     r.step({
-      at: ['int[] left = dfs(root.left);', 'int[] right = dfs(root.right);'],
-      explain: `At ${n.val}: ask each subtree for its [min, max, valid] summary.`,
+      at: ['long[] left = dfs(root.left);', 'long[] right = dfs(root.right);'],
+      explain: `At ${n.val}: ask each subtree for its [max, min, valid] summary before judging this node.`,
       vars: { node: n.val },
-      visuals: [tv('tree', root, { states: { [n.id]: 'active' }, badges }), stack.viz()],
+      visuals: [tv('tree', root, { states: { ...states, [n.id]: 'active' }, badges }), stack.viz()],
     });
     const left = dfs(n.left);
     const right = dfs(n.right);
 
-    if (left[2] === 0 || right[2] === 0) {
-      stack.pop();
-      r.step({
-        at: 'if (left[2] == 0 || right[2] == 0) return new int[]{ 0, 0, 0 };',
-        explain: `A subtree of ${n.val} is already invalid, so the whole tree is.`,
-        visuals: [tv('tree', root, { states: { [n.id]: 'error' }, badges }), stack.viz()],
-        tone: 'error',
-      });
-      return [0, 0, 0];
-    }
-
-    const ok = left[1] < n.val && n.val < right[0];
-    if (!ok) {
-      badges[n.id] = '✗';
-      stack.pop();
-      r.step({
-        at: 'if (!(left[1] < root.val && root.val < right[0])) {',
-        explain: `The largest value on the left is ${left[1] === Number.MIN_SAFE_INTEGER ? '−∞' : left[1]} and the smallest on the right is ${right[0] === Number.MAX_SAFE_INTEGER ? '+∞' : right[0]}. ${n.val} does not sit strictly between them, so the BST property is broken.`,
-        vars: { node: n.val, maxLeft: left[1], minRight: right[0] },
-        visuals: [tv('tree', root, { states: { [n.id]: 'error' }, badges }), stack.viz()],
-        tone: 'error',
-      });
-      return [0, 0, 0];
-    }
-
-    const min = Math.min(left[0], n.val);
-    const max = Math.max(right[1], n.val);
-    badges[n.id] = `${min === Number.MAX_SAFE_INTEGER ? n.val : min}…${max === Number.MIN_SAFE_INTEGER ? n.val : max}`;
+    const ordered = left[0] < n.val && n.val < right[1];
+    const isValid = ordered && left[2] === 1 && right[2] === 1 ? 1 : 0;
+    const max = Math.max(n.val, Math.max(left[0], right[0]));
+    const min = Math.min(n.val, Math.min(left[1], right[1]));
+    badges[n.id] = `${min}…${max}${isValid ? '' : ' ✗'}`;
+    states[n.id] = isValid ? 'done' : 'error';
     stack.pop();
+
+    let explain: string;
+    if (!ordered) {
+      explain = `The largest value on the left is ${show(left[0])} and the smallest on the right is ${show(right[1])}. ${n.val} does not sit strictly between them, so the BST property is broken here.`;
+    } else if (!isValid) {
+      explain = `${n.val} sits between ${show(left[0])} and ${show(right[1])}, but a subtree below already reported invalid — that verdict propagates up.`;
+    } else {
+      explain = `${show(left[0])} < ${n.val} < ${show(right[1])} and both subtrees are valid. The subtree spans ${min}…${max}.`;
+    }
     r.step({
-      at: ['int min = Math.min(left[0], root.val);', 'int max = Math.max(right[1], root.val);'],
-      explain: `${n.val} is greater than everything on its left and smaller than everything on its right. The subtree spans ${min}…${max}.`,
-      vars: { node: n.val, min, max, valid: true },
-      visuals: [tv('tree', root, { states: { [n.id]: 'done' }, badges }), stack.viz()],
-      tone: 'success',
+      at: [
+        'long isValid = (left[0] < root.val && root.val < right[1])',
+        'long max = Math.max(root.val, Math.max(left[0], right[0]));',
+        'long min = Math.min(root.val, Math.min(left[1], right[1]));',
+      ],
+      explain: `${explain} max/min look at both sides so the range is the true range of the subtree, even when it is out of order.`,
+      vars: { node: n.val, maxLeft: show(left[0]), minRight: show(right[1]), isValid, max, min },
+      visuals: [tv('tree', root, { states, badges }), stack.viz()],
+      tone: isValid ? 'success' : 'error',
     });
-    return [min, max, 1];
+    return [max, min, isValid];
   };
 
   r.step({
-    at: '/** Returns [ minRight, maxLeft, isValid ] */',
+    at: 'public boolean isValidBST(TreeNode root) {',
     explain:
-      'Checking only parent-child pairs is not enough — a node must beat every value in its left subtree and lose to every value in its right one. So each call reports the range it covers.',
+      'Checking only parent-child pairs is not enough — a node must beat every value in its left subtree and lose to every value in its right one. So each call reports the max and min of the subtree it covers.',
     visuals: [tv('tree', root), stack.viz()],
   });
   const res = dfs(root);
   r.step({
-    at: 'return res[2] == 1;',
+    at: 'return dfs(root)[2] == 1;',
     explain: res[2] === 1 ? 'Every node respects the BST ordering.' : 'The ordering is violated somewhere.',
-    visuals: [tv('tree', root, { badges })],
+    visuals: [tv('tree', root, { states, badges })],
     tone: res[2] === 1 ? 'success' : 'error',
     result: `return ${res[2] === 1}`,
+  });
+}
+
+/* ── Insert into a Binary Search Tree ─────────────────────────────────────── */
+
+function insertIntoBST(r: Recorder, values: (number | null)[], val: number) {
+  let root = tbuild(values);
+  const states: Record<string, CellState> = {};
+  const stack = new CallStack();
+
+  r.step({
+    at: 'public TreeNode insertIntoBST(TreeNode root, int val) {',
+    explain: `Walk down from the root comparing with ${val}: the BST ordering decides each turn, and the first missing child on that path is where ${val} belongs.`,
+    vars: { val },
+    visuals: [tv('BST', root), stack.viz()],
+  });
+
+  if (!root) {
+    root = { id: 'new', val, left: null, right: null };
+    r.step({
+      at: 'if (root == null) return new TreeNode(val);',
+      explain: `The tree is empty, so ${val} becomes the whole tree.`,
+      vars: { val },
+      visuals: [tv('BST', root, { states: { new: 'success' } })],
+      tone: 'success',
+      result: `return [${val}]`,
+    });
+    return;
+  }
+
+  const dfs = (n: TNode) => {
+    stack.push(`dfs(${n.val})`);
+    if (val < n.val) {
+      if (n.left) {
+        r.step({
+          at: ['if (val < root.val) {', 'if (root.left != null) dfs(root.left, val);'],
+          explain: `${val} < ${n.val}, so it belongs in the left subtree, which exists — keep descending.`,
+          vars: { 'root.val': n.val, val },
+          visuals: [tv('BST', root, { states: { ...states, [n.id]: 'active' } }), stack.viz()],
+        });
+        states[n.id] = 'visited';
+        dfs(n.left);
+      } else {
+        n.left = { id: 'new', val, left: null, right: null };
+        states[n.id] = 'visited';
+        r.step({
+          at: ['if (val < root.val) {', 'else root.left = new TreeNode(val);'],
+          explain: `${val} < ${n.val} and ${n.val} has no left child — that empty spot is exactly where ${val} goes.`,
+          vars: { 'root.val': n.val, val },
+          visuals: [tv('BST', root, { states: { ...states, new: 'success' } }), stack.viz()],
+          tone: 'success',
+        });
+      }
+    }
+    if (val > n.val) {
+      if (n.right) {
+        r.step({
+          at: ['if (val > root.val) {', 'if (root.right != null) dfs(root.right, val);'],
+          explain: `${val} > ${n.val}, so it belongs in the right subtree, which exists — keep descending.`,
+          vars: { 'root.val': n.val, val },
+          visuals: [tv('BST', root, { states: { ...states, [n.id]: 'active' } }), stack.viz()],
+        });
+        states[n.id] = 'visited';
+        dfs(n.right);
+      } else {
+        n.right = { id: 'new', val, left: null, right: null };
+        states[n.id] = 'visited';
+        r.step({
+          at: ['if (val > root.val) {', 'else root.right = new TreeNode(val);'],
+          explain: `${val} > ${n.val} and ${n.val} has no right child — that empty spot is exactly where ${val} goes.`,
+          vars: { 'root.val': n.val, val },
+          visuals: [tv('BST', root, { states: { ...states, new: 'success' } }), stack.viz()],
+          tone: 'success',
+        });
+      }
+    }
+    stack.pop();
+  };
+
+  dfs(root);
+  r.step({
+    at: 'return root;',
+    explain: `The new node is a leaf, so nothing else moved and the root is unchanged.`,
+    visuals: [tv('BST', root, { states: { new: 'success' } })],
+    tone: 'success',
+    result: 'return root',
+  });
+}
+
+/* ── Delete Node in a Binary Search Tree ──────────────────────────────────── */
+
+function deleteNode(r: Recorder, values: (number | null)[], key: number) {
+  let root = tbuild(values);
+  const states: Record<string, CellState> = {};
+  const stack = new CallStack();
+  const view = (extra: Record<string, CellState> = {}) => [tv('BST', root, { states: { ...states, ...extra } }), stack.viz()];
+
+  const del = (n: TNode | null): TNode | null => {
+    if (!n) {
+      r.step({
+        at: 'if (root == null) return null;',
+        explain: `Fell off the tree: ${key} is not in it, so this subtree comes back unchanged (null).`,
+        vars: { key },
+        visuals: view(),
+        tone: 'warn',
+      });
+      return null;
+    }
+    stack.push(`deleteNode(${n.val})`);
+
+    if (key < n.val || key > n.val) {
+      const goLeft = key < n.val;
+      const line = goLeft
+        ? 'if (key < root.val) root.left = deleteNode(root.left, key);@2'
+        : 'else if (key > root.val) root.right = deleteNode(root.right, key);@2';
+      r.step({
+        at: line,
+        explain: `${key} ${goLeft ? '<' : '>'} ${n.val}, so if ${key} exists it is in the ${goLeft ? 'left' : 'right'} subtree. Whatever that call returns becomes the new ${goLeft ? 'left' : 'right'} child.`,
+        vars: { 'root.val': n.val, key },
+        visuals: view({ [n.id]: 'active' }),
+      });
+      states[n.id] = 'visited';
+      const child = del(goLeft ? n.left : n.right);
+      if (goLeft) n.left = child;
+      else n.right = child;
+      stack.pop();
+      r.step({
+        at: [line, 'return root;'],
+        explain: `Reattach the returned subtree (${child ? `rooted at ${child.val}` : 'null'}) as ${n.val}.${goLeft ? 'left' : 'right'}; ${n.val} itself stays, so return it to its parent.`,
+        vars: { 'root.val': n.val, [`root.${goLeft ? 'left' : 'right'}`]: child ? child.val : 'null' },
+        visuals: view({ [n.id]: 'done' }),
+      });
+      return n;
+    }
+
+    r.step({
+      at: '// Node found',
+      explain: `Found ${key}. Whatever this call returns replaces it in its parent.`,
+      vars: { key },
+      visuals: view({ [n.id]: 'error' }),
+      tone: 'warn',
+    });
+    if (!n.left) {
+      stack.pop();
+      r.step({
+        at: 'if (root.left == null) return root.right;',
+        explain: `${n.val} has no left child, so its right subtree (${n.right ? `rooted at ${n.right.val}` : 'empty'}) simply takes its place.`,
+        visuals: view({ [n.id]: 'error', ...(n.right ? { [n.right.id]: 'success' } : {}) }),
+      });
+      return n.right;
+    }
+    if (!n.right) {
+      stack.pop();
+      r.step({
+        at: 'if (root.right == null) return root.left;',
+        explain: `${n.val} has no right child, so its left subtree (rooted at ${n.left.val}) simply takes its place.`,
+        visuals: view({ [n.id]: 'error', [n.left.id]: 'success' }),
+      });
+      return n.left;
+    }
+
+    const newRoot = n.right;
+    let leftMost = newRoot;
+    r.step({
+      at: ['TreeNode newRoot = root.right;', 'TreeNode leftMost = newRoot;'],
+      explain: `Two children: promote the right subtree (${newRoot.val}). Every value on the left is smaller than every value there, so the left subtree must hang off its smallest node.`,
+      vars: { newRoot: newRoot.val, leftMost: leftMost.val },
+      visuals: view({ [n.id]: 'error', [newRoot.id]: 'success', [leftMost.id]: 'active' }),
+    });
+    while (leftMost.left) {
+      leftMost = leftMost.left;
+      r.step({
+        at: 'while (leftMost.left != null) leftMost = leftMost.left;',
+        explain: `Keep going left to find the smallest value in the right subtree — now at ${leftMost.val}.`,
+        vars: { newRoot: newRoot.val, leftMost: leftMost.val },
+        visuals: view({ [n.id]: 'error', [newRoot.id]: 'success', [leftMost.id]: 'active' }),
+      });
+    }
+    const leftSub = n.left;
+    leftMost.left = leftSub;
+    // Java leaves root.left dangling (the node is discarded anyway); clear it so
+    // the moved subtree isn't drawn in two places.
+    n.left = null;
+    stack.pop();
+    r.step({
+      at: ['leftMost.left = root.left;', 'return newRoot;'],
+      explain: `${leftMost.val} has no left child, and everything in ${leftSub.val}'s subtree is smaller than it, so attach it there. ${newRoot.val} now replaces ${n.val}.`,
+      vars: { newRoot: newRoot.val, leftMost: leftMost.val },
+      visuals: view({ [n.id]: 'error', [newRoot.id]: 'success', [leftSub.id]: 'active' }),
+    });
+    return newRoot;
+  };
+
+  r.step({
+    at: 'public TreeNode deleteNode(TreeNode root, int key) {',
+    explain: `Search for ${key} using the BST ordering. Each call returns the root of its (possibly rebuilt) subtree, so a parent never needs to know which side it came from.`,
+    vars: { key },
+    visuals: view(),
+  });
+  root = del(root);
+  r.step({
+    at: 'public TreeNode deleteNode(TreeNode root, int key) {',
+    explain: `Done — the tree is still a valid BST without ${key}.`,
+    visuals: [tv('BST', root)],
+    tone: 'success',
+    result: root ? `return node(${root.val})` : 'return null',
   });
 }
 
@@ -895,6 +1116,22 @@ export const treeTracers: Record<string, Tracer> = {
     examples: [
       { label: 'valid BST', input: 'root = [5, 3, 8, 1, 4, 7, 9]', run: (r) => validateBST(r, [5, 3, 8, 1, 4, 7, 9]) },
       { label: 'invalid (deep violation)', input: 'root = [5, 1, 6, null, null, 4, 7]', run: (r) => validateBST(r, [5, 1, 6, null, null, 4, 7]) },
+      { label: 'invalid (needs both maxes)', input: 'root = [9, 6, 15, 3, 16, 10, 20]', run: (r) => validateBST(r, [9, 6, 15, 3, 16, 10, 20]) },
+    ],
+  },
+  'medium/trees/InsertIntoABinarySearchTree': {
+    examples: [
+      { label: '[4,2,7,1,3], val = 5', input: 'root = [4, 2, 7, 1, 3], val = 5', run: (r) => insertIntoBST(r, [4, 2, 7, 1, 3], 5) },
+      { label: '[40,20,60,10,30,50,70], val = 25', input: 'root = [40, 20, 60, 10, 30, 50, 70], val = 25', run: (r) => insertIntoBST(r, [40, 20, 60, 10, 30, 50, 70], 25) },
+      { label: 'empty tree', input: 'root = [], val = 5', run: (r) => insertIntoBST(r, [], 5) },
+    ],
+  },
+  'medium/trees/DeleteNodeInABinarySearchTree': {
+    examples: [
+      { label: 'key = 3 (two children)', input: 'root = [5, 3, 6, 2, 4, null, 7], key = 3', run: (r) => deleteNode(r, [5, 3, 6, 2, 4, null, 7], 3) },
+      { label: 'delete the root', input: 'root = [5, 3, 8, 2, 4, 7, 9, null, null, null, null, 6], key = 5', run: (r) => deleteNode(r, [5, 3, 8, 2, 4, 7, 9, null, null, null, null, 6], 5) },
+      { label: 'key = 6 (one child)', input: 'root = [5, 3, 6, 2, 4, null, 7], key = 6', run: (r) => deleteNode(r, [5, 3, 6, 2, 4, null, 7], 6) },
+      { label: 'key not found', input: 'root = [5, 3, 6, 2, 4, null, 7], key = 0', run: (r) => deleteNode(r, [5, 3, 6, 2, 4, null, 7], 0) },
     ],
   },
 };

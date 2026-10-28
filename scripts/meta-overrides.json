@@ -399,6 +399,9 @@
     "slug": "reorder-list",
     "number": 143
   },
+  "medium/slidingwindow/CheapestFlightInEveryWindow": {
+    "title": "Cheapest Flight in Every Window"
+  },
   "medium/slidingwindow/LongestRepeatingCharacterReplacement": {
     "title": "Longest Repeating Character Replacement",
     "slug": "longest-repeating-character-replacement",
@@ -458,6 +461,16 @@
     "title": "Count Good Nodes in Binary Tree",
     "slug": "count-good-nodes-in-binary-tree",
     "number": 1448
+  },
+  "medium/trees/DeleteNodeInABinarySearchTree": {
+    "title": "Delete Node in a BST",
+    "slug": "delete-node-in-a-bst",
+    "number": 450
+  },
+  "medium/trees/InsertIntoABinarySearchTree": {
+    "title": "Insert into a Binary Search Tree",
+    "slug": "insert-into-a-binary-search-tree",
+    "number": 701
   },
   "medium/trees/KthSmallestIntegerInBST": {
     "title": "Kth Smallest Element in a BST",
