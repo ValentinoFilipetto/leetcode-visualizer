@@ -533,6 +533,7 @@ export const slidingWindowTracers: Record<string, Tracer> = {
   'medium/slidingwindow/CheapestFlightInEveryWindow': {
     examples: [
       { label: 'dayRange = 3, days 3-8', input: 'prices = {3:100, 4:300, 5:500, 6:200, 7:400, 8:100}, dayRange = 3, startDay = 3, endDay = 8', run: (r) => cheapestFlights(r, { 3: 100, 4: 300, 5: 500, 6: 200, 7: 400, 8: 100 }, 3, 3, 8) },
+      { label: '10 days, dayRange = 4', input: 'prices = {1:420, 2:310, 3:500, 4:280, 5:650, 6:390, 7:460, 8:600, 9:540, 10:330}, dayRange = 4, startDay = 1, endDay = 10', run: (r) => cheapestFlights(r, { 1: 420, 2: 310, 3: 500, 4: 280, 5: 650, 6: 390, 7: 460, 8: 600, 9: 540, 10: 330 }, 4, 1, 10) },
       { label: 'missing days and a tie', input: 'prices = {1:250, 2:180, 4:180, 5:300, 8:90}, dayRange = 3, startDay = 1, endDay = 9', run: (r) => cheapestFlights(r, { 1: 250, 2: 180, 4: 180, 5: 300, 8: 90 }, 3, 1, 9) },
       { label: 'empty windows are omitted', input: 'prices = {1:120, 5:80}, dayRange = 2, startDay = 1, endDay = 5', run: (r) => cheapestFlights(r, { 1: 120, 5: 80 }, 2, 1, 5) },
     ],
