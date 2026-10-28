@@ -457,12 +457,17 @@ button {
   margin-left: -1px;
   border-radius: 1px;
   background: transparent;
-  transition: background 0.15s var(--ease);
+  transition: background 0.15s var(--ease), width 0.15s var(--ease), margin 0.15s var(--ease);
 }
-.resize-handle:hover::after,
+.resize-handle:hover::after {
+  background: var(--line-strong);
+}
+/* Like VS Code's sash: a thicker accent line while dragging (or focused). */
 .resize-handle:focus-visible::after,
 .resize-handle.active::after {
-  background: var(--line-strong);
+  width: 4px;
+  margin-left: -2px;
+  background: var(--accent);
 }
 body.col-resizing {
   cursor: col-resize;
