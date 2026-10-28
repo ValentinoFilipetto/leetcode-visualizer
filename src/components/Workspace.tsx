@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { ResizeHandle } from './ResizeHandle';
 
 const MIN_CODE = 280;
 const MIN_VIZ = 360;
-const KEY_STEP = 24;
 
 /**
  * The code panel and the visualization side by side, with a draggable gutter
@@ -15,7 +15,6 @@ export function Workspace({ showCode, code, viz }: { showCode: boolean; code: Re
     const saved = Number(localStorage.getItem('codeWidth'));
     return saved > 0 ? saved : null;
   });
-  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     if (codeWidth === null) localStorage.removeItem('codeWidth');
@@ -31,41 +30,10 @@ export function Workspace({ showCode, code, viz }: { showCode: boolean; code: Re
     return Math.max(MIN_CODE, Math.min(px, inner - gutter - MIN_VIZ));
   };
 
-  const currentWidth = () => ref.current?.querySelector<HTMLElement>('.code-panel')?.offsetWidth ?? MIN_CODE;
-
-  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    const handle = e.currentTarget;
-    handle.setPointerCapture(e.pointerId);
-    const startX = e.clientX;
-    const startWidth = currentWidth();
-    setDragging(true);
-
-    const onMove = (ev: PointerEvent) => setCodeWidth(clamp(startWidth + ev.clientX - startX));
-    const onUp = () => {
-      setDragging(false);
-      handle.removeEventListener('pointermove', onMove);
-      handle.removeEventListener('pointerup', onUp);
-      handle.removeEventListener('pointercancel', onUp);
-    };
-    handle.addEventListener('pointermove', onMove);
-    handle.addEventListener('pointerup', onUp);
-    handle.addEventListener('pointercancel', onUp);
-  };
-
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    // Arrow keys step through the trace everywhere else; here they move the gutter.
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-    e.preventDefault();
-    e.stopPropagation();
-    setCodeWidth(clamp(currentWidth() + (e.key === 'ArrowRight' ? KEY_STEP : -KEY_STEP)));
-  };
-
   return (
     <div
       ref={ref}
-      className={`workspace${showCode ? ' show-code' : ''}${dragging ? ' resizing' : ''}`}
+      className={`workspace${showCode ? ' show-code' : ''}`}
       style={
         codeWidth === null
           ? undefined
@@ -74,16 +42,11 @@ export function Workspace({ showCode, code, viz }: { showCode: boolean; code: Re
       }
     >
       {code}
-      <div
-        className="resize-handle"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize code and visualization panels"
-        tabIndex={0}
-        title="Drag to resize · double-click to reset"
-        onPointerDown={onPointerDown}
-        onDoubleClick={() => setCodeWidth(null)}
-        onKeyDown={onKeyDown}
+      <ResizeHandle
+        label="Resize code and visualization panels"
+        width={() => ref.current?.querySelector<HTMLElement>('.code-panel')?.offsetWidth ?? MIN_CODE}
+        onResize={(px) => setCodeWidth(clamp(px))}
+        onReset={() => setCodeWidth(null)}
       />
       {viz}
     </div>

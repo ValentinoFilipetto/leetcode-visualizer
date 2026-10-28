@@ -116,8 +116,11 @@ button {
    App shell
    ───────────────────────────────────────────────────────────────────────────── */
 .app {
+  /* Overridden inline once the user drags the sidebar edge (see App.tsx). */
+  --sidebar-track: 296px;
+  position: relative;
   display: grid;
-  grid-template-columns: 296px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-track) minmax(0, 1fr);
   height: 100%;
   overflow: hidden;
 }
@@ -125,8 +128,20 @@ button {
 .app.sidebar-collapsed {
   grid-template-columns: minmax(0, 1fr);
 }
-.app.sidebar-collapsed > .sidebar {
+.app.sidebar-collapsed > .sidebar,
+.app.sidebar-collapsed > .sidebar-handle {
   display: none;
+}
+
+/* Sits on the sidebar's right border; `left` resolves its percentages against
+   .app, just like the grid track it follows. */
+.resize-handle.sidebar-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--sidebar-track) - 4px);
+  width: 8px;
+  z-index: 5;
 }
 
 .sidebar {
@@ -446,10 +461,10 @@ button {
 }
 .resize-handle:hover::after,
 .resize-handle:focus-visible::after,
-.workspace.resizing .resize-handle::after {
+.resize-handle.active::after {
   background: var(--line-strong);
 }
-.workspace.resizing {
+body.col-resizing {
   cursor: col-resize;
   user-select: none;
 }

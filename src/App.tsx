@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import data from './data/solutions.generated.json';
 import type { Solution } from './types';
+import { ResizeHandle } from './components/ResizeHandle';
 import { Sidebar } from './components/Sidebar';
 import { SolutionView } from './components/SolutionView';
 import { IconCode, IconExternal, IconMenu, IconMoon, IconSidebar, IconSun } from './components/icons';
@@ -9,6 +10,11 @@ import { tracers } from './tracers';
 const JAVA_REPO = 'https://github.com/ValentinoFilipetto/java-leetcode-solutions';
 
 const solutions = (data.solutions as Solution[]).slice().sort((a, b) => a.title.localeCompare(b.title));
+
+const MIN_SIDEBAR = 220;
+const MAX_SIDEBAR = 480;
+/** Room the workspace needs beside the sidebar: both panel minimums plus gutter and padding. */
+const MIN_MAIN = 720;
 
 /** Rendered twice: in the topbar on desktop, inside the meta strip on mobile. */
 function SolutionLinks({ solution }: { solution: Solution }) {
@@ -49,9 +55,19 @@ export default function App() {
       ?.setAttribute('content', theme === 'dark' ? '#10151f' : '#ffffff');
   }, [theme]);
 
+  const [sidebarWidth, setSidebarWidth] = useState<number | null>(() => {
+    const saved = Number(localStorage.getItem('sidebarWidth'));
+    return saved > 0 ? saved : null;
+  });
+
   useEffect(() => {
     localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
   }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    if (sidebarWidth === null) localStorage.removeItem('sidebarWidth');
+    else localStorage.setItem('sidebarWidth', String(Math.round(sidebarWidth)));
+  }, [sidebarWidth]);
 
   useEffect(() => {
     window.location.hash = `/${selectedId}`;
@@ -72,7 +88,17 @@ export default function App() {
   );
 
   return (
-    <div className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+    <div
+      className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}
+      style={
+        sidebarWidth === null
+          ? undefined
+          // CSS re-clamps it, so shrinking the window never squeezes the workspace below MIN_MAIN.
+          : ({
+              '--sidebar-track': `clamp(${MIN_SIDEBAR}px, min(${sidebarWidth}px, calc(100% - ${MIN_MAIN}px)), ${MAX_SIDEBAR}px)`,
+            } as CSSProperties)
+      }
+    >
       {menuOpen && <div className="scrim" onClick={() => setMenuOpen(false)} />}
       <Sidebar
         className={menuOpen ? 'open' : ''}
@@ -82,6 +108,15 @@ export default function App() {
           setSelectedId(id);
           setMenuOpen(false);
         }}
+      />
+      <ResizeHandle
+        className="sidebar-handle"
+        label="Resize problem list"
+        width={() => document.querySelector<HTMLElement>('.sidebar')?.offsetWidth ?? MIN_SIDEBAR}
+        onResize={(px) =>
+          setSidebarWidth(Math.max(MIN_SIDEBAR, Math.min(px, MAX_SIDEBAR, window.innerWidth - MIN_MAIN)))
+        }
+        onReset={() => setSidebarWidth(null)}
       />
 
       <main className="main">
