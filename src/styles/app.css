@@ -323,7 +323,7 @@ button {
   min-width: 0;
 }
 
-/* The LeetCode/Source links render twice; only one copy is ever visible.
+/* The Source link renders twice; only one copy is ever visible.
    .icon-btn sets display later in this file, so the code toggle needs both
    classes to stay hidden outside the mobile layout. */
 .mobile-links,
@@ -1661,8 +1661,8 @@ kbd {
 
    The phone layout keeps the visualization and the player, and gives up
    everything else: the code panel becomes opt-in (the </> toggle in the
-   topbar), complexity tags and keyboard hints disappear, and the LeetCode /
-   Source links move down into the meta strip.
+   topbar), complexity tags and keyboard hints disappear, and the Source link
+   moves down into the meta strip.
    ───────────────────────────────────────────────────────────────────────────── */
 @media (max-width: 760px) {
   /* Dynamic viewport units: the browser's collapsing toolbar must not clip the player. */

@@ -119,5 +119,3 @@ writeFileSync(outFile, JSON.stringify({ generatedAt: null, solutions }, null, 2)
 const byDifficulty = solutions.reduce((acc, s) => ({ ...acc, [s.difficulty]: (acc[s.difficulty] ?? 0) + 1 }), {});
 console.log(`Extracted ${solutions.length} solutions ->  src/data/solutions.generated.json`);
 console.log(Object.entries(byDifficulty).map(([k, v]) => `  ${k}: ${v}`).join('\n'));
-const missingSlug = solutions.filter((s) => !s.leetcodeSlug).length;
-if (missingSlug) console.log(`  (${missingSlug} without an explicit LeetCode slug; they fall back to search links)`);

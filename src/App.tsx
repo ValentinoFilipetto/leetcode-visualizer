@@ -10,28 +10,17 @@ const JAVA_REPO = 'https://github.com/ValentinoFilipetto/java-leetcode-solutions
 
 const solutions = (data.solutions as Solution[]).slice().sort((a, b) => a.title.localeCompare(b.title));
 
-function leetcodeUrl(s: Solution): string {
-  return s.leetcodeSlug
-    ? `https://leetcode.com/problems/${s.leetcodeSlug}/`
-    : `https://leetcode.com/problemset/?search=${encodeURIComponent(s.title)}`;
-}
-
 /** Rendered twice: in the topbar on desktop, inside the meta strip on mobile. */
 function SolutionLinks({ solution }: { solution: Solution }) {
   return (
-    <>
-      <a className="link-btn" href={leetcodeUrl(solution)} target="_blank" rel="noreferrer">
-        LeetCode <IconExternal />
-      </a>
-      <a
-        className="link-btn"
-        href={`${JAVA_REPO}/blob/main/${solution.sourcePath}`}
-        target="_blank"
-        rel="noreferrer"
-      >
-        Source <IconExternal />
-      </a>
-    </>
+    <a
+      className="link-btn"
+      href={`${JAVA_REPO}/blob/main/${solution.sourcePath}`}
+      target="_blank"
+      rel="noreferrer"
+    >
+      Source <IconExternal />
+    </a>
   );
 }
 
