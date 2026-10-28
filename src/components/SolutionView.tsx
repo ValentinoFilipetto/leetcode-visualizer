@@ -5,6 +5,7 @@ import { CodePanel } from './CodePanel';
 import { IconMaximize, IconMinimize } from './icons';
 import { Player } from './Player';
 import { VisualView } from './viz/VisualView';
+import { Workspace } from './Workspace';
 
 function buildSteps(code: string, tracer: Tracer | undefined, exampleIndex: number): { steps: Step[]; input: string } {
   if (!tracer || tracer.examples.length === 0) return { steps: [], input: '' };
@@ -114,19 +115,22 @@ export function SolutionView({
   if (!tracer || steps.length === 0) {
     return (
       <>
-        <div className={`workspace${showCode ? ' show-code' : ''}`}>
-          <CodePanel code={solution.code} activeLines={[]} />
-          <div className="panel">
-            <div className="panel-head">Visualization</div>
-            <div className="missing-tracer">
-              <p style={{ fontSize: 15, color: 'var(--text)' }}>No trace for this solution yet.</p>
-              <p>
-                Add a tracer in <code>src/tracers/</code> to bring this one to life — see{' '}
-                <code>CONTRIBUTING.md</code>.
-              </p>
+        <Workspace
+          showCode={showCode}
+          code={<CodePanel code={solution.code} activeLines={[]} />}
+          viz={
+            <div className="panel">
+              <div className="panel-head">Visualization</div>
+              <div className="missing-tracer">
+                <p style={{ fontSize: 15, color: 'var(--text)' }}>No trace for this solution yet.</p>
+                <p>
+                  Add a tracer in <code>src/tracers/</code> to bring this one to life — see{' '}
+                  <code>CONTRIBUTING.md</code>.
+                </p>
+              </div>
             </div>
-          </div>
-        </div>
+          }
+        />
         <div style={{ height: 16 }} />
       </>
     );
@@ -215,10 +219,7 @@ export function SolutionView({
         )}
       </div>
 
-      <div className={`workspace${showCode ? ' show-code' : ''}`}>
-        <CodePanel code={solution.code} activeLines={step?.lines ?? []} />
-        {vizPanel}
-      </div>
+      <Workspace showCode={showCode} code={<CodePanel code={solution.code} activeLines={step?.lines ?? []} />} viz={vizPanel} />
 
       {maximized && <div className="scrim viz-scrim" onClick={() => setMaximized(false)} />}
       {!maximized && playerNode}
