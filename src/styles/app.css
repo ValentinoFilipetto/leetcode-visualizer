@@ -546,6 +546,15 @@ body.col-resizing {
   transition: background 0.18s var(--ease), border-color 0.18s var(--ease);
 }
 
+/* Long lines wrap at spaces when the panel is narrow (CodePanel sets the hanging indent). */
+.code-line .code-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
+}
+
 .code-line .ln {
   color: var(--text-faint);
   opacity: 0.55;

@@ -1,8 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { highlightJava } from '../lib/javaHighlight';
 
+const TAB = 4;
+
+type Tokens = ReturnType<typeof highlightJava>[number];
+
+/**
+ * Splits a line's leading whitespace off its tokens and measures it in columns,
+ * so a wrapped line can hang its continuation one level deeper than its start.
+ */
+function splitIndent(tokens: Tokens): { indent: number; tokens: Tokens } {
+  let indent = 0;
+  const rest = tokens.slice();
+  while (rest.length) {
+    const lead = rest[0].text.match(/^[ \t]*/)![0];
+    for (const ch of lead) indent = ch === '\t' ? indent + TAB - (indent % TAB) : indent + 1;
+    if (lead.length < rest[0].text.length) {
+      rest[0] = { ...rest[0], text: rest[0].text.slice(lead.length) };
+      break;
+    }
+    rest.shift();
+  }
+  return { indent, tokens: rest };
+}
+
 export function CodePanel({ code, activeLines }: { code: string; activeLines: number[] }) {
-  const tokenLines = useMemo(() => highlightJava(code), [code]);
+  const tokenLines = useMemo(() => highlightJava(code).map(splitIndent), [code]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hot = new Set(activeLines);
   const firstHot = activeLines.length ? Math.min(...activeLines) : 0;
@@ -55,12 +78,14 @@ export function CodePanel({ code, activeLines }: { code: string; activeLines: nu
         </span>
       </div>
       <div className="code-scroll" ref={scrollRef}>
-        {tokenLines.map((tokens, i) => {
+        {tokenLines.map(({ indent, tokens }, i) => {
           const lineNo = i + 1;
           return (
             <div className={`code-line${hot.has(lineNo) ? ' hot' : ''}`} key={lineNo} data-line={lineNo}>
               <span className="ln">{lineNo}</span>
-              <span>
+              {/* The indent becomes padding, and a negative text-indent pulls only the
+                  first visual row back out: wrapped rows hang one level deeper. */}
+              <span className="code-text" style={{ paddingLeft: `${indent + TAB}ch`, textIndent: `-${TAB}ch` }}>
                 {tokens.map((t, k) => (
                   <span className={`tok-${t.type}`} key={k}>
                     {t.text}
