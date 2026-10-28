@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, chars, mapOf, queue, setOf } from './helpers';
+import { arr, chars, deque, mapOf, setOf } from './helpers';
 
 /* ── Longest Substring Without Repeating Characters ───────────────────────── */
 
@@ -413,7 +413,7 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
             i >= 0 && i < span ? { from: Math.max(windowStart, 0), to: i, label: windowStart >= 0 ? `window ${startDay + windowStart}-${startDay + i}` : 'filling first window' } : undefined,
         },
       ),
-      queue('dq  (front = cheapest)', dq.map((j) => `day ${startDay + j} · ${price[j]}`), { emptyHint: 'empty' }),
+      deque('dq  (front = cheapest)', dq.map((j) => `day ${startDay + j} · ${price[j]}`), { emptyHint: 'empty' }),
       mapOf('res', res),
     ];
   };

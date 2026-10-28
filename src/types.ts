@@ -146,8 +146,8 @@ export interface StackViz {
   kind: 'stack';
   title?: string;
   items: { value: string | number; state?: CellState; label?: string }[];
-  /** `stack` grows upwards, `queue` and `frames` read top-to-bottom. */
-  variant?: 'stack' | 'queue' | 'frames';
+  /** `stack` grows upwards, `queue` and `frames` read top-to-bottom, `deque` reads left-to-right. */
+  variant?: 'stack' | 'queue' | 'frames' | 'deque';
   emptyHint?: string;
   note?: string;
 }

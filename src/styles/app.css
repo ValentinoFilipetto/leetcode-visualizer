@@ -1002,6 +1002,15 @@ body.col-resizing {
 .stack-viz.frames {
   flex-direction: column;
 }
+.stack-viz.deque {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.stack-viz.deque .stack-row {
+  flex-direction: column;
+  gap: 4px;
+}
 .stack-row {
   display: flex;
   align-items: center;

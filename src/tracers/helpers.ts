@@ -85,6 +85,12 @@ export function queue(title: string, items: (string | number)[], o: Partial<Stac
   return { ...viz, items: viz.items.map((item) => ({ ...item })) };
 }
 
+/** A horizontal queue, front on the left and back on the right. */
+export function deque(title: string, items: (string | number)[], o: Partial<StackViz> = {}): StackViz {
+  const viz: StackViz = { kind: 'stack', title, items: items.map((value) => ({ value })), variant: 'deque', ...o };
+  return { ...viz, items: viz.items.map((item) => ({ ...item })) };
+}
+
 export function frames(title: string, items: (string | number)[], o: Partial<StackViz> = {}): StackViz {
   const viz: StackViz = {
     kind: 'stack',

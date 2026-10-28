@@ -166,6 +166,11 @@ export function StackView({ viz }: { viz: StackViz }) {
                 <span className="stack-tag">top</span>
               )}
               {!item.label && variant === 'queue' && i === 0 && <span className="stack-tag">front</span>}
+              {!item.label && variant === 'deque' && (i === 0 || i === viz.items.length - 1) && (
+                <span className="stack-tag">
+                  {viz.items.length === 1 ? 'front · back' : i === 0 ? 'front' : 'back'}
+                </span>
+              )}
             </div>
           ))}
         </div>
