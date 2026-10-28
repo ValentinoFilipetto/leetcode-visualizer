@@ -11,31 +11,23 @@ const MIN_VIZ = 360;
  */
 export function Workspace({ showCode, code, viz }: { showCode: boolean; code: ReactNode; viz: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
-  // A share of the workspace width rather than pixels, so the code panel scales with the window.
-  const [codeShare, setCodeShare] = useState<number | null>(() => {
-    const saved = Number(localStorage.getItem('codeShare'));
-    return saved > 0 && saved < 1 ? saved : null;
+  const [codeWidth, setCodeWidth] = useState<number | null>(() => {
+    const saved = Number(localStorage.getItem('codeWidth'));
+    return saved > 0 ? saved : null;
   });
 
   useEffect(() => {
-    localStorage.removeItem('codeWidth'); // the old pixel-based setting
-    if (codeShare === null) localStorage.removeItem('codeShare');
-    else localStorage.setItem('codeShare', codeShare.toFixed(4));
-  }, [codeShare]);
+    if (codeWidth === null) localStorage.removeItem('codeWidth');
+    else localStorage.setItem('codeWidth', String(Math.round(codeWidth)));
+  }, [codeWidth]);
 
-  /** Width of the grid's content box: what a percentage track resolves against. */
-  const innerWidth = () => {
+  const clamp = (px: number) => {
     const el = ref.current;
-    if (!el) return 0;
+    if (!el) return px;
     const style = getComputedStyle(el);
-    return el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-  };
-
-  const resize = (px: number) => {
-    const inner = innerWidth();
-    if (inner <= 0) return;
-    const gutter = ref.current?.querySelector<HTMLElement>('.resize-handle')?.offsetWidth ?? 0;
-    setCodeShare(Math.max(MIN_CODE, Math.min(px, inner - gutter - MIN_VIZ)) / inner);
+    const inner = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const gutter = el.querySelector<HTMLElement>('.resize-handle')?.offsetWidth ?? 0;
+    return Math.max(MIN_CODE, Math.min(px, inner - gutter - MIN_VIZ));
   };
 
   return (
@@ -43,20 +35,18 @@ export function Workspace({ showCode, code, viz }: { showCode: boolean; code: Re
       ref={ref}
       className={`workspace${showCode ? ' show-code' : ''}`}
       style={
-        codeShare === null
+        codeWidth === null
           ? undefined
-          // Both panels keep their minimums however small the window gets.
-          : ({
-              '--code-track': `clamp(${MIN_CODE}px, ${(codeShare * 100).toFixed(2)}%, calc(100% - ${MIN_VIZ + 16}px))`,
-            } as CSSProperties)
+          // CSS re-clamps it, so shrinking the window never squeezes the visualization below MIN_VIZ.
+          : ({ '--code-track': `clamp(${MIN_CODE}px, ${codeWidth}px, calc(100% - ${MIN_VIZ + 16}px))` } as CSSProperties)
       }
     >
       {code}
       <ResizeHandle
         label="Resize code and visualization panels"
         width={() => ref.current?.querySelector<HTMLElement>('.code-panel')?.offsetWidth ?? MIN_CODE}
-        onResize={resize}
-        onReset={() => setCodeShare(null)}
+        onResize={(px) => setCodeWidth(clamp(px))}
+        onReset={() => setCodeWidth(null)}
       />
       {viz}
     </div>
