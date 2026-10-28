@@ -384,14 +384,10 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
   const days = Array.from({ length: Math.max(span, 0) }, (_, i) => startDay + i);
   const has = (i: number) => prices[startDay + i] !== undefined;
   const price: number[] = new Array(Math.max(span, 0)).fill(0);
-  const dq: number[] = new Array(Math.max(span, 0)).fill(0);
-  let head = 0;
-  let tail = 0;
-
-  const live = () => dq.slice(head, tail);
+  const dq: number[] = []; // offsets, prices strictly increasing front -> back
   const view = (i: number, extra: Record<number, CellState> = {}, best?: number): Visual[] => {
     const windowStart = i - dayRange + 1;
-    const inDq = new Set(live());
+    const inDq = new Set(dq);
     return [
       arr(
         days.map((d, j) => (has(j) ? prices[d] : '—')),
@@ -417,7 +413,7 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
             i >= 0 && i < span ? { from: Math.max(windowStart, 0), to: i, label: windowStart >= 0 ? `window ${startDay + windowStart}-${startDay + i}` : 'filling first window' } : undefined,
         },
       ),
-      queue('dq  (front = cheapest)', live().map((j) => `day ${startDay + j} · ${price[j]}`), { emptyHint: 'empty' }),
+      queue('dq  (front = cheapest)', dq.map((j) => `day ${startDay + j} · ${price[j]}`), { emptyHint: 'empty' }),
       mapOf('res', res),
     ];
   };
@@ -450,15 +446,15 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
       const p = prices[day];
       price[i] = p;
       const popped: number[] = [];
-      while (tail > head && price[dq[tail - 1]] > p) popped.push(dq[--tail]);
-      const tie = tail > head && price[dq[tail - 1]] === p;
-      dq[tail++] = i;
+      while (dq.length > 0 && price[dq[dq.length - 1]] > p) popped.push(dq.pop()!);
+      const tie = dq.length > 0 && price[dq[dq.length - 1]] === p;
+      dq.push(i);
       r.step({
-        at: ['if (f != null && f.get("price") != null) {', 'while (tail > head && price[dq[tail - 1]] > p) tail--;', 'dq[tail++] = i;', ...skipLine],
+        at: ['if (f != null && f.get(PRICE) != null) {', 'while (!dq.isEmpty() && price[dq.peekLast()] > p) dq.removeLast();', 'dq.addLast(i);', ...skipLine],
         explain:
           (popped.length
             ? `Day ${day} costs ${p}, cheaper than ${popped.map((j) => `day ${startDay + j} (${price[j]})`).join(', ')}. Those can never be a window's cheapest again — day ${day} is cheaper and stays longer — so drop them from the back.`
-            : `Day ${day} costs ${p}. Nothing at the back is pricier, so just append it${tie ? ` — day ${startDay + dq[tail - 2]} costs the same and stays in front, so ties go to the earliest day` : ''}.`) + filling,
+            : `Day ${day} costs ${p}. Nothing at the back is pricier, so just append it${tie ? ` — day ${startDay + dq[dq.length - 2]} costs the same and stays in front, so ties go to the earliest day` : ''}.`) + filling,
         vars: { i, day, p, windowStart },
         visuals: view(i, { [i]: 'active', ...Object.fromEntries(popped.map((j) => [j, 'error' as CellState])) }),
       });
@@ -473,15 +469,15 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
     if (windowStart < 0) continue;
 
     const expired: number[] = [];
-    while (head < tail && dq[head] < windowStart) expired.push(dq[head++]);
+    while (dq.length > 0 && dq[0] < windowStart) expired.push(dq.shift()!);
     const expiredText = expired.length ? `Day(s) ${expired.map((j) => startDay + j).join(', ')} fell off the left edge, so pop them from the front. ` : '';
     const key = `${startDay + windowStart}-${day}`;
 
-    if (head < tail) {
-      const best = dq[head];
+    if (dq.length > 0) {
+      const best = dq[0];
       res.set(key, `day ${startDay + best}, price ${price[best]}`);
       r.step({
-        at: ['while (head < tail && dq[head] < windowStart) head++;', 'int best = dq[head];', 'res.put((startDay + windowStart) + "-" + (startDay + i),'],
+        at: ['while (!dq.isEmpty() && dq.peekFirst() < windowStart) dq.removeFirst();', 'int best = dq.peekFirst();', 'res.put((startDay + windowStart) + "-" + (startDay + i),'],
         explain: `${expiredText}The front of the deque is the cheapest day still inside ${key}: day ${startDay + best} at ${price[best]}.`,
         vars: { windowStart, i, best: startDay + best, price: price[best] },
         visuals: view(i, {}, best),
@@ -489,7 +485,7 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
       });
     } else {
       r.step({
-        at: ['while (head < tail && dq[head] < windowStart) head++;', 'if (head < tail) {'],
+        at: ['while (!dq.isEmpty() && dq.peekFirst() < windowStart) dq.removeFirst();', 'if (!dq.isEmpty()) {'],
         explain: `${expiredText}The deque is empty: there are no flights at all in ${key}, so the window is omitted.`,
         vars: { windowStart, i },
         visuals: view(i),
