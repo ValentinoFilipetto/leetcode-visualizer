@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, GraphViz, Tracer, Visual } from '../types';
-import { arr, frames, graphViz, grid, queue } from './helpers';
+import { arr, cellStates, frames, graphViz, grid, queue } from './helpers';
 
 /* ── Shared grid helpers ──────────────────────────────────────────────────── */
 
@@ -23,7 +23,7 @@ function floodFill(r: Recorder, image: number[][], sr: number, sc: number, color
     grid(image, {
       title: 'image',
       cursor: rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS ? [rr, cc] : undefined,
-      states: states(image, (v, r2, c2) => (r2 === rr && c2 === cc ? state : v === color ? ('success' as CellState) : undefined)),
+      states: states(image, (v, r2, c2) => (r2 === rr && c2 === cc ? state : v === color ? 'success' : undefined)),
     }),
     { ...stack, items: calls.slice().reverse().map((value) => ({ value })) },
   ];
@@ -95,7 +95,7 @@ function numIslands(r: Recorder, input: string[][]) {
     grid(g, {
       title: "grid  ('1' = land, '0' = water or already visited)",
       cursor: rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS ? [rr, cc] : undefined,
-      states: states(g, (v, r2, c2) => (r2 === rr && c2 === cc ? state : v === '1' ? ('window' as CellState) : ('muted' as CellState))),
+      states: states(g, (v, r2, c2) => (r2 === rr && c2 === cc ? state : v === '1' ? 'window' : 'muted')),
       note: `islands so far: ${count}`,
     }),
     frames('call stack', calls.slice().reverse()),
@@ -165,7 +165,7 @@ function maxAreaOfIsland(r: Recorder, input: number[][]) {
     grid(g, {
       title: 'grid',
       cursor: rr >= 0 ? [rr, cc] : undefined,
-      states: states(g, (v, r2, c2) => (r2 === rr && c2 === cc ? state : v === 1 ? ('window' as CellState) : ('muted' as CellState))),
+      states: states(g, (v, r2, c2) => (r2 === rr && c2 === cc ? state : v === 1 ? 'window' : 'muted')),
       note,
     }),
     frames('call stack', calls.slice().reverse()),
@@ -231,7 +231,7 @@ function surroundedRegions(r: Recorder, input: string[][]) {
       title: 'board',
       cursor: rr >= 0 ? [rr, cc] : undefined,
       states: states(b, (v, r2, c2) =>
-        r2 === rr && c2 === cc ? state : v === '*' ? ('success' as CellState) : v === 'O' ? ('window' as CellState) : ('muted' as CellState),
+        r2 === rr && c2 === cc ? state : v === '*' ? 'success' : v === 'O' ? 'window' : 'muted',
       ),
       note,
     }),
@@ -348,7 +348,7 @@ function orangesRotting(r: Recorder, input: number[][]) {
       title: 'grid  (· empty, 1 fresh, 2 rotten)',
       cursor,
       states: states(g, (v, r2, c2) =>
-        cursor && cursor[0] === r2 && cursor[1] === c2 ? 'active' : v === 2 ? ('error' as CellState) : v === 1 ? ('window' as CellState) : ('muted' as CellState),
+        cursor && cursor[0] === r2 && cursor[1] === c2 ? 'active' : v === 2 ? 'error' : v === 1 ? 'window' : 'muted',
       ),
       note: `minute ${minutes} · fresh left: ${fresh}`,
     }),
@@ -432,12 +432,12 @@ function islandsAndTreasure(r: Recorder, input: number[][]) {
         cursor && cursor[0] === r2 && cursor[1] === c2
           ? 'active'
           : v === -1
-            ? ('muted' as CellState)
+            ? 'muted'
             : v === 0
-              ? ('success' as CellState)
+              ? 'success'
               : v === INF
                 ? undefined
-                : ('window' as CellState),
+                : 'window',
       ),
     }),
     queue('queue', q.map(([a, b]) => `(${a}, ${b})`)),
@@ -503,7 +503,7 @@ function updateMatrix(r: Recorder, input: number[][]) {
       title: 'mat  (? = not reached yet)',
       cursor,
       states: states(mat, (v, r2, c2) =>
-        cursor && cursor[0] === r2 && cursor[1] === c2 ? 'active' : v === 0 ? ('success' as CellState) : v === -1 ? ('muted' as CellState) : ('window' as CellState),
+        cursor && cursor[0] === r2 && cursor[1] === c2 ? 'active' : v === 0 ? 'success' : v === -1 ? 'muted' : 'window',
       ),
     }),
     queue('queue', q.map(([a, b]) => `(${a}, ${b})`)),
@@ -659,7 +659,7 @@ function courseSchedule(r: Recorder, numCourses: number, prerequisites: number[]
       states: indegree.map((v: number, i: number) => (i === active ? ('active' as CellState) : v === 0 && !done.has(i) ? ('success' as CellState) : undefined)),
     }),
     queue('queue  (courses with no prerequisites left)', q),
-    ...(withOrder ? [arr(res, { title: 'res', states: res.map(() => 'success' as CellState) })] : []),
+    ...(withOrder ? [arr(res, { title: 'res', states: cellStates(res.length, () => 'success') })] : []),
   ];
 
   r.step({

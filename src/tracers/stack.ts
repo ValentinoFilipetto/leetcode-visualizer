@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, StackViz, Tracer, Visual } from '../types';
-import { arr, bars, chars, list } from './helpers';
+import { arr, bars, cellStates, chars, list } from './helpers';
 
 const stackViz = (title: string, items: (string | number)[], topState?: CellState, o: Partial<StackViz> = {}): StackViz => ({
   kind: 'stack',
@@ -20,7 +20,7 @@ function validParentheses(r: Recorder, s: string) {
   const view = (i: number, state: CellState, topState?: CellState): Visual[] => [
     arr(cs, {
       title: 's',
-      states: cs.map((_, k) => (k === i ? state : k < i ? ('visited' as CellState) : undefined)),
+      states: cellStates(cs.length, (k) => (k === i ? state : k < i ? 'visited' : undefined)),
       pointers: i >= 0 && i < cs.length ? [{ name: 'c', index: i }] : [],
     }),
     stackViz('stack', st, topState),
@@ -152,7 +152,7 @@ function evalRPN(r: Recorder, tokens: string[]) {
   const view = (i: number, state: CellState, topState?: CellState): Visual[] => [
     arr(tokens, {
       title: 'tokens',
-      states: tokens.map((_, k) => (k === i ? state : k < i ? ('visited' as CellState) : undefined)),
+      states: cellStates(tokens.length, (k) => (k === i ? state : k < i ? 'visited' : undefined)),
       pointers: i >= 0 ? [{ name: 't', index: i }] : [],
     }),
     stackViz('stack', st, topState),
@@ -217,8 +217,8 @@ function dailyTemperatures(r: Recorder, temperatures: number[]) {
   const view = (i: number, state: CellState, topState?: CellState): Visual[] => [
     bars(temperatures, {
       title: 'temperatures',
-      states: temperatures.map((_, k) =>
-        k === i ? state : st.some(([, idx]) => idx === k) ? ('window' as CellState) : res[k] ? ('done' as CellState) : undefined,
+      states: cellStates(temperatures.length, (k) =>
+        k === i ? state : st.some(([, idx]) => idx === k) ? 'window' : res[k] ? 'done' : undefined,
       ),
       pointers: i >= 0 ? [{ name: 'i', index: i }] : [],
     }),
@@ -282,7 +282,7 @@ function carFleet(r: Recorder, target: number, position: number[], speed: number
         title: 'cars, sorted by position descending (closest to target first)',
         indexed: false,
         labels: pairs.map(([p, s]) => `${((target - p) / s).toFixed(2)} h`),
-        states: pairs.map((_, i) => (i === activeIdx ? state : i < activeIdx ? ('visited' as CellState) : undefined)),
+        states: cellStates(pairs.length, (i) => (i === activeIdx ? state : i < activeIdx ? 'visited' : undefined)),
       },
     );
 
@@ -337,7 +337,7 @@ function largestRectangle(r: Recorder, heights: number[]) {
   const view = (i: number, state: CellState, showLeft: boolean, showRight: boolean): Visual[] => [
     bars(heights, {
       title: 'heights',
-      states: heights.map((_, k) => (k === i ? state : st.includes(k) ? ('window' as CellState) : undefined)),
+      states: cellStates(heights.length, (k) => (k === i ? state : st.includes(k) ? 'window' : undefined)),
       pointers: i >= 0 ? [{ name: 'i', index: i }] : [],
     }),
     stackViz(
@@ -426,7 +426,7 @@ function largestRectangle(r: Recorder, heights: number[]) {
       visuals: [
         bars(heights, {
           title: 'heights',
-          states: heights.map((_, k) => (k === i ? ('active' as CellState) : k > left[i] && k < right[i] ? ('window' as CellState) : undefined)),
+          states: cellStates(heights.length, (k) => (k === i ? 'active' : k > left[i] && k < right[i] ? 'window' : undefined)),
           overlays: [{ index: left[i] + 1, span: width, from: 0, to: heights[i], tone: 'area', label: `${area}` }],
         }),
       ],
@@ -441,7 +441,7 @@ function largestRectangle(r: Recorder, heights: number[]) {
     visuals: [
       bars(heights, {
         title: 'heights',
-        states: heights.map((_, k) => (k > left[bestIndex] && k < right[bestIndex] ? ('success' as CellState) : undefined)),
+        states: cellStates(heights.length, (k) => (k > left[bestIndex] && k < right[bestIndex] ? 'success' : undefined)),
         overlays: [
           {
             index: left[bestIndex] + 1,

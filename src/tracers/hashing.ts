@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, at, chars, grid, list, mapOf, setOf, setStr } from './helpers';
+import { arr, at, cellStates, chars, grid, list, mapOf, setOf, setStr } from './helpers';
 
 /* ── Two Sum ──────────────────────────────────────────────────────────────── */
 
@@ -551,7 +551,7 @@ function topKFrequent(r: Recorder, nums: number[], k: number) {
           at: ['res[index++] = n;', 'if (index == k) return res;'],
           explain: `${n} occurs ${i}× — that fills the k = ${k} slots, so we are done.`,
           vars: { i, n, res: list(res) },
-          visuals: [bucketViz(i), arr(res, { title: 'res', states: res.map(() => 'success' as CellState) })],
+          visuals: [bucketViz(i), arr(res, { title: 'res', states: cellStates(res.length, () => 'success') })],
           tone: 'success',
           result: `return ${list(res)}`,
         });
@@ -561,7 +561,7 @@ function topKFrequent(r: Recorder, nums: number[], k: number) {
         at: 'res[index++] = n;',
         explain: `${n} occurs ${i}×, the highest remaining frequency — take it.`,
         vars: { i, n, res: list(res) },
-        visuals: [bucketViz(i), arr(res, { title: 'res', states: res.map(() => 'success' as CellState) })],
+        visuals: [bucketViz(i), arr(res, { title: 'res', states: cellStates(res.length, () => 'success') })],
       });
     }
   }
@@ -686,8 +686,8 @@ function encodeDecode(r: Recorder, strs: string[]) {
       visuals: [
         arr(chars(encoded), {
           title: 'res',
-          states: chars(encoded).map((_, i) =>
-            i >= encoded.length - (String(s.length).length + 1 + s.length) ? ('active' as CellState) : ('visited' as CellState),
+          states: cellStates(chars(encoded).length, (i) =>
+            i >= encoded.length - (String(s.length).length + 1 + s.length) ? 'active' : 'visited',
           ),
         }),
       ],
@@ -718,8 +718,8 @@ function encodeDecode(r: Recorder, strs: string[]) {
       visuals: [
         arr(chars(str), {
           title: 'str',
-          states: chars(str).map((_, i) =>
-            i >= digitStart && i < rp ? ('active' as CellState) : i === rp ? ('compare' as CellState) : undefined,
+          states: cellStates(chars(str).length, (i) =>
+            i >= digitStart && i < rp ? 'active' : i === rp ? 'compare' : undefined,
           ),
           pointers: [{ name: 'r', index: rp }],
         }),
@@ -739,7 +739,7 @@ function encodeDecode(r: Recorder, strs: string[]) {
       visuals: [
         arr(chars(str), {
           title: 'str',
-          states: chars(str).map((_, i) => (i >= l && i < rp ? ('success' as CellState) : i < l ? ('visited' as CellState) : undefined)),
+          states: cellStates(chars(str).length, (i) => (i >= l && i < rp ? 'success' : i < l ? 'visited' : undefined)),
           pointers: [
             { name: 'l', index: l, tone: 3 },
             { name: 'r', index: Math.min(rp, str.length), tone: 2 },

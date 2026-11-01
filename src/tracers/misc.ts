@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, chars, list, setOf } from './helpers';
+import { arr, cellStates, chars, list, setOf } from './helpers';
 
 /* ── Happy Number ─────────────────────────────────────────────────────────── */
 
@@ -72,7 +72,7 @@ function longestCommonPrefix(r: Recorder, strs: string[]) {
     strs.map((s, row) =>
       arr(chars(s), {
         title: row === 0 ? 'strs[0]  (the reference string)' : `strs[${row}]`,
-        states: chars(s).map((_, k) => (k < i ? ('success' as CellState) : k === i ? (row === badRow ? 'error' : state) : undefined)),
+        states: cellStates(chars(s).length, (k) => (k < i ? 'success' : k === i ? (row === badRow ? 'error' : state) : undefined)),
       }),
     );
 
@@ -134,7 +134,7 @@ function majorityElement(r: Recorder, nums: number[]) {
   const view = (i: number, state: CellState): Visual[] => [
     arr(nums, {
       title: 'nums',
-      states: nums.map((_, k) => (k === i ? state : k < i ? (nums[k] === res ? ('success' as CellState) : ('muted' as CellState)) : undefined)),
+      states: cellStates(nums.length, (k) => (k === i ? state : k < i ? (nums[k] === res ? 'success' : 'muted') : undefined)),
       pointers: [{ name: 'num', index: i }],
       note: `candidate = ${res}, count = ${count}`,
     }),
@@ -184,10 +184,10 @@ function rangeSumQuery(r: Recorder, nums: number[], queries: [number, number][])
   const prefix = new Array(nums.length + 1).fill(0);
 
   const view = (activePrefix: number[], activeNums: number[]): Visual[] => [
-    arr(nums, { title: 'nums', states: nums.map((_, i) => (activeNums.includes(i) ? ('active' as CellState) : undefined)) }),
+    arr(nums, { title: 'nums', states: cellStates(nums.length, (i) => (activeNums.includes(i) ? 'active' : undefined)) }),
     arr(prefix, {
       title: 'prefix  (prefix[i] = sum of the first i values)',
-      states: prefix.map((_, i) => (activePrefix.includes(i) ? ('success' as CellState) : undefined)),
+      states: cellStates(prefix.length, (i) => (activePrefix.includes(i) ? 'success' : undefined)),
     }),
   ];
 
@@ -214,8 +214,8 @@ function rangeSumQuery(r: Recorder, nums: number[], queries: [number, number][])
       explain: `sumRange(${left}, ${right}) = prefix[${right + 1}] − prefix[${left}] = ${prefix[right + 1]} − ${prefix[left]} = ${sum}. One subtraction, no loop.`,
       vars: { left, right, sum },
       visuals: [
-        arr(nums, { title: 'nums', states: nums.map((_, i) => (i >= left && i <= right ? ('window' as CellState) : ('muted' as CellState))) }),
-        arr(prefix, { title: 'prefix', states: prefix.map((_, i) => (i === left || i === right + 1 ? ('success' as CellState) : undefined)) }),
+        arr(nums, { title: 'nums', states: cellStates(nums.length, (i) => (i >= left && i <= right ? 'window' : 'muted')) }),
+        arr(prefix, { title: 'prefix', states: cellStates(prefix.length, (i) => (i === left || i === right + 1 ? 'success' : undefined)) }),
       ],
       tone: 'success',
       result: `sumRange(${left}, ${right}) = ${sum}`,
@@ -247,7 +247,7 @@ function hIndex(r: Recorder, input: number[]) {
       visuals: [
         arr(citations, {
           title: 'citations (sorted)',
-          states: citations.map((_, k) => (k === i ? (ok ? 'success' : 'error') : k > i ? ('window' as CellState) : ('muted' as CellState))),
+          states: cellStates(citations.length, (k) => (k === i ? (ok ? 'success' : 'error') : k > i ? 'window' : 'muted')),
           pointers: [{ name: 'i', index: i }],
         }),
       ],
@@ -258,7 +258,7 @@ function hIndex(r: Recorder, input: number[]) {
         at: 'return hCandidate;',
         explain: `The h-index is ${hCandidate}.`,
         visuals: [
-          arr(citations, { title: 'citations (sorted)', states: citations.map((_, k) => (k >= i ? ('success' as CellState) : ('muted' as CellState))) }),
+          arr(citations, { title: 'citations (sorted)', states: cellStates(citations.length, (k) => (k >= i ? 'success' : 'muted')) }),
         ],
         tone: 'success',
         result: `return ${hCandidate}`,
@@ -287,7 +287,7 @@ function sortColors(r: Recorder, input: number[]) {
       title: 'frequencies',
       labels: ['0s', '1s', '2s'],
       indexed: false,
-      states: frequencies.map((_, i) => (i === active ? ('active' as CellState) : undefined)),
+      states: cellStates(frequencies.length, (i) => (i === active ? 'active' : undefined)),
     });
 
   r.step({
@@ -303,7 +303,7 @@ function sortColors(r: Recorder, input: number[]) {
       explain: `nums[${i}] = ${nums[i]} → there are now ${frequencies[nums[i]]} of them.`,
       vars: { num: nums[i] },
       visuals: [
-        arr(nums, { title: 'nums', states: nums.map((_, k) => (k === i ? ('active' as CellState) : k < i ? ('visited' as CellState) : undefined)) }),
+        arr(nums, { title: 'nums', states: cellStates(nums.length, (k) => (k === i ? 'active' : k < i ? 'visited' : undefined)) }),
         freqViz(nums[i]),
       ],
     });
@@ -318,7 +318,7 @@ function sortColors(r: Recorder, input: number[]) {
       explain: `Write the smallest colour still available: nums[${i}] = ${value}.`,
       vars: { i, value },
       visuals: [
-        arr(nums, { title: 'nums', states: nums.map((_, k) => (k === i ? ('active' as CellState) : k < i ? ('success' as CellState) : ('muted' as CellState))) }),
+        arr(nums, { title: 'nums', states: cellStates(nums.length, (k) => (k === i ? 'active' : k < i ? 'success' : 'muted')) }),
         freqViz(value),
       ],
     });
@@ -327,7 +327,7 @@ function sortColors(r: Recorder, input: number[]) {
   r.step({
     at: 'public void sortColors(int[] nums) {',
     explain: 'Sorted in O(n) time and O(1) extra space.',
-    visuals: [arr(nums, { title: 'nums', states: nums.map(() => 'success' as CellState) })],
+    visuals: [arr(nums, { title: 'nums', states: cellStates(nums.length, () => 'success') })],
     tone: 'success',
     result: `nums = ${list(nums)}`,
   });
@@ -410,8 +410,8 @@ function productExceptSelf(r: Recorder, nums: number[]) {
       explain: `res[${i}] = ${before}, the product of everything to the left of index ${i}. Then prefix becomes ${before} × ${nums[i]} = ${prefix}.`,
       vars: { i, prefix },
       visuals: [
-        arr(nums, { title: 'nums', states: nums.map((_, k) => (k === i ? ('active' as CellState) : k < i ? ('visited' as CellState) : undefined)) }),
-        arr(res, { title: 'res  (left products)', states: res.map((_, k) => (k === i ? ('success' as CellState) : k < i ? ('window' as CellState) : undefined)) }),
+        arr(nums, { title: 'nums', states: cellStates(nums.length, (k) => (k === i ? 'active' : k < i ? 'visited' : undefined)) }),
+        arr(res, { title: 'res  (left products)', states: cellStates(res.length, (k) => (k === i ? 'success' : k < i ? 'window' : undefined)) }),
       ],
     });
   }
@@ -433,8 +433,8 @@ function productExceptSelf(r: Recorder, nums: number[]) {
       explain: `res[${i}] = ${before} × ${beforePostfix} = ${res[i]}. Then postfix becomes ${beforePostfix} × ${nums[i]} = ${postfix}.`,
       vars: { i, postfix },
       visuals: [
-        arr(nums, { title: 'nums', states: nums.map((_, k) => (k === i ? ('active' as CellState) : k > i ? ('visited' as CellState) : undefined)) }),
-        arr(res, { title: 'res', states: res.map((_, k) => (k === i ? ('success' as CellState) : k > i ? ('window' as CellState) : undefined)) }),
+        arr(nums, { title: 'nums', states: cellStates(nums.length, (k) => (k === i ? 'active' : k > i ? 'visited' : undefined)) }),
+        arr(res, { title: 'res', states: cellStates(res.length, (k) => (k === i ? 'success' : k > i ? 'window' : undefined)) }),
       ],
     });
   }
@@ -442,7 +442,7 @@ function productExceptSelf(r: Recorder, nums: number[]) {
   r.step({
     at: 'return res;',
     explain: 'Two linear passes, no division, O(1) extra space beyond the output.',
-    visuals: [arr(nums, { title: 'nums' }), arr(res, { title: 'res', states: res.map(() => 'success' as CellState) })],
+    visuals: [arr(nums, { title: 'nums' }), arr(res, { title: 'res', states: cellStates(res.length, () => 'success') })],
     tone: 'success',
     result: `return ${list(res)}`,
   });

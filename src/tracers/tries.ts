@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, GraphViz, Tracer, Visual } from '../types';
-import { arr, chars, frames, graphViz } from './helpers';
+import { arr, cellStates, chars, frames, graphViz } from './helpers';
 
 /* ── A trie the tracers can grow and walk ─────────────────────────────────── */
 
@@ -88,7 +88,7 @@ function implementTrie(r: Recorder, ops: TrieOp[]) {
           vars: { word, c, i },
           visuals: [
             trieViz(root, Object.fromEntries(path.map((id, k) => [id, k === path.length - 1 ? (existed ? 'active' : 'success') : ('visited' as CellState)]))),
-            arr(chars(word), { title: 'word', states: chars(word).map((_, k) => (k === i ? ('active' as CellState) : k < i ? ('visited' as CellState) : undefined)) }),
+            arr(chars(word), { title: 'word', states: cellStates(chars(word).length, (k) => (k === i ? 'active' : k < i ? 'visited' : undefined)) }),
           ],
           tone: existed ? 'neutral' : 'success',
         });
@@ -117,7 +117,7 @@ function implementTrie(r: Recorder, ops: TrieOp[]) {
           vars: { word, c, i },
           visuals: [
             trieViz(root, { [curr.id]: 'error' }),
-            arr(chars(word), { title: op[0] === 'search' ? 'word' : 'prefix', states: chars(word).map((_, k) => (k === i ? ('error' as CellState) : k < i ? ('visited' as CellState) : undefined)) }),
+            arr(chars(word), { title: op[0] === 'search' ? 'word' : 'prefix', states: cellStates(chars(word).length, (k) => (k === i ? 'error' : k < i ? 'visited' : undefined)) }),
           ],
           tone: 'error',
           result: `${op[0]}("${word}") = false`,
@@ -132,7 +132,7 @@ function implementTrie(r: Recorder, ops: TrieOp[]) {
         vars: { word, c, i },
         visuals: [
           trieViz(root, Object.fromEntries(path.map((id, k) => [id, k === path.length - 1 ? ('active' as CellState) : ('visited' as CellState)]))),
-          arr(chars(word), { title: op[0] === 'search' ? 'word' : 'prefix', states: chars(word).map((_, k) => (k === i ? ('active' as CellState) : k < i ? ('visited' as CellState) : undefined)) }),
+          arr(chars(word), { title: op[0] === 'search' ? 'word' : 'prefix', states: cellStates(chars(word).length, (k) => (k === i ? 'active' : k < i ? 'visited' : undefined)) }),
         ],
       });
     }
@@ -219,7 +219,7 @@ function addAndSearch(r: Recorder, ops: WordOp[]) {
             vars: { i, currentChar: c },
             visuals: [
               trieViz(root, { [curr.id]: 'error' }),
-              arr(chars(word), { title: 'word', states: chars(word).map((_, k) => (k === i ? ('error' as CellState) : undefined)) }),
+              arr(chars(word), { title: 'word', states: cellStates(chars(word).length, (k) => (k === i ? 'error' : undefined)) }),
               frames('call stack', calls.slice().reverse()),
             ],
             tone: 'warn',
@@ -233,7 +233,7 @@ function addAndSearch(r: Recorder, ops: WordOp[]) {
           vars: { i, currentChar: c },
           visuals: [
             trieViz(root, { [next.id]: 'active', [curr.id]: 'visited' }),
-            arr(chars(word), { title: 'word', states: chars(word).map((_, k) => (k === i ? ('active' as CellState) : k < i ? ('visited' as CellState) : undefined)) }),
+            arr(chars(word), { title: 'word', states: cellStates(chars(word).length, (k) => (k === i ? 'active' : k < i ? 'visited' : undefined)) }),
             frames('call stack', calls.slice().reverse()),
           ],
         });
@@ -248,7 +248,7 @@ function addAndSearch(r: Recorder, ops: WordOp[]) {
         vars: { i, branches: curr.children.size },
         visuals: [
           trieViz(root, Object.fromEntries([...curr.children.values()].map((k) => [k.id, 'compare' as CellState]))),
-          arr(chars(word), { title: 'word', states: chars(word).map((_, k) => (k === i ? ('compare' as CellState) : undefined)) }),
+          arr(chars(word), { title: 'word', states: cellStates(chars(word).length, (k) => (k === i ? 'compare' : undefined)) }),
           frames('call stack', calls.slice().reverse()),
         ],
         tone: 'warn',

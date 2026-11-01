@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, bars, chars, deque, mapOf, setOf } from './helpers';
+import { arr, bars, cellStates, chars, deque, mapOf, setOf } from './helpers';
 
 /* ── Best Time to Buy and Sell Stock ──────────────────────────────────────── */
 
@@ -12,8 +12,8 @@ function maxProfit(r: Recorder, prices: number[]) {
   const view = (state: CellState, profit?: number): Visual[] => [
     bars(prices, {
       title: 'prices',
-      states: prices.map((_, i) =>
-        i === rr ? state : i === l ? ('window' as CellState) : i < l ? ('muted' as CellState) : undefined,
+      states: cellStates(prices.length, (i) =>
+        i === rr ? state : i === l ? 'window' : i < l ? 'muted' : undefined,
       ),
       pointers: [
         { name: 'l (buy)', index: l, tone: 3 },
@@ -80,8 +80,8 @@ function containsNearbyDuplicate(r: Recorder, nums: number[], k: number) {
   const view = (state: CellState, extra: Record<number, CellState> = {}, hit?: number): Visual[] => [
     arr(nums, {
       title: 'nums',
-      states: nums.map((_, i) =>
-        extra[i] ?? (i === rr ? state : i >= l && i < rr ? ('window' as CellState) : i < l ? ('muted' as CellState) : undefined),
+      states: cellStates(nums.length, (i) =>
+        extra[i] ?? (i === rr ? state : i >= l && i < rr ? 'window' : i < l ? 'muted' : undefined),
       ),
       pointers: [
         { name: 'l', index: l },
@@ -160,7 +160,7 @@ function maxSlidingWindow(r: Recorder, nums: number[], k: number) {
     return [
       arr(nums, {
         title: 'nums',
-        states: nums.map((_, i) =>
+        states: cellStates(nums.length, (i) =>
           extra[i] ??
           (i > rr ? undefined : i < l ? 'muted' : inQ.has(i) ? 'window' : 'visited'),
         ),
@@ -173,7 +173,7 @@ function maxSlidingWindow(r: Recorder, nums: number[], k: number) {
       deque('q  (front = max)', q.map((i) => `${i}: ${nums[i]}`), { emptyHint: 'empty' }),
       arr(res, {
         title: 'res',
-        states: res.map((_, i) => (i === resHighlight ? ('success' as CellState) : i < l ? ('done' as CellState) : undefined)),
+        states: cellStates(res.length, (i) => (i === resHighlight ? 'success' : i < l ? 'done' : undefined)),
       }),
     ];
   };
@@ -226,7 +226,7 @@ function maxSlidingWindow(r: Recorder, nums: number[], k: number) {
   r.step({
     at: 'return res;',
     explain: 'Each index enters and leaves the deque at most once, so the whole pass is amortized O(n).',
-    visuals: [arr(nums, { title: 'nums' }), arr(res, { title: 'res', states: res.map(() => 'done' as CellState) })],
+    visuals: [arr(nums, { title: 'nums' }), arr(res, { title: 'res', states: cellStates(res.length, () => 'done') })],
     tone: 'success',
     result: `return [${res.join(', ')}]`,
   });
@@ -243,7 +243,7 @@ function lengthOfLongestSubstring(r: Recorder, s: string) {
   const view = (rr: number, state: CellState = 'active', hit?: string): Visual[] => [
     arr(cs, {
       title: 's',
-      states: cs.map((_, i) => (i === rr ? state : i >= l && i < rr ? ('window' as CellState) : i < l ? ('muted' as CellState) : undefined)),
+      states: cellStates(cs.length, (i) => (i === rr ? state : i >= l && i < rr ? 'window' : i < l ? 'muted' : undefined)),
       pointers: [
         { name: 'l', index: l },
         { name: 'r', index: rr, tone: 2 },
@@ -310,7 +310,7 @@ function characterReplacement(r: Recorder, s: string, k: number) {
   const view = (rr: number, state: CellState): Visual[] => [
     arr(cs, {
       title: 's',
-      states: cs.map((_, i) => (i === rr ? state : i >= l && i < rr ? ('window' as CellState) : i < l ? ('muted' as CellState) : undefined)),
+      states: cellStates(cs.length, (i) => (i === rr ? state : i >= l && i < rr ? 'window' : i < l ? 'muted' : undefined)),
       pointers: [
         { name: 'l', index: l },
         { name: 'r', index: rr, tone: 2 },
@@ -419,7 +419,7 @@ function checkInclusion(r: Recorder, s1: string, s2: string) {
       visuals: [
         arr(chars(s2), {
           title: 's2',
-          states: chars(s2).map((_, i) => (i === right ? ('active' as CellState) : i >= left && i < right ? ('window' as CellState) : undefined)),
+          states: cellStates(chars(s2).length, (i) => (i === right ? 'active' : i >= left && i < right ? 'window' : undefined)),
           pointers: [
             { name: 'left', index: left },
             { name: 'right', index: right, tone: 2 },
@@ -440,7 +440,7 @@ function checkInclusion(r: Recorder, s1: string, s2: string) {
         visuals: [
           arr(chars(s2), {
             title: 's2',
-            states: chars(s2).map((_, i) => (i === left ? ('error' as CellState) : i > left && i <= right ? ('window' as CellState) : undefined)),
+            states: cellStates(chars(s2).length, (i) => (i === left ? 'error' : i > left && i <= right ? 'window' : undefined)),
             pointers: [
               { name: 'left', index: left },
               { name: 'right', index: right, tone: 2 },
@@ -461,7 +461,7 @@ function checkInclusion(r: Recorder, s1: string, s2: string) {
         visuals: [
           arr(chars(s2), {
             title: 's2',
-            states: chars(s2).map((_, i) => (i >= left && i <= right ? ('success' as CellState) : undefined)),
+            states: cellStates(chars(s2).length, (i) => (i >= left && i <= right ? 'success' : undefined)),
           }),
           countView(need, 'need'),
           countView(window, 'window'),
@@ -510,15 +510,15 @@ function minWindow(r: Recorder, s: string, t: string) {
   const view = (rr: number, state: CellState): Visual[] => [
     arr(cs, {
       title: 's',
-      states: cs.map((_, i) =>
+      states: cellStates(cs.length, (i) =>
         res[0] >= 0 && i >= res[0] && i <= res[1] && have === need
-          ? ('success' as CellState)
+          ? 'success'
           : i === rr
             ? state
             : i >= l && i < rr
-              ? ('window' as CellState)
+              ? 'window'
               : i < l
-                ? ('muted' as CellState)
+                ? 'muted'
                 : undefined,
       ),
       pointers: [
@@ -598,7 +598,7 @@ function minWindow(r: Recorder, s: string, t: string) {
     visuals: [
       arr(cs, {
         title: 's',
-        states: cs.map((_, i) => (res[0] >= 0 && i >= res[0] && i <= res[1] ? ('success' as CellState) : ('muted' as CellState))),
+        states: cellStates(cs.length, (i) => (res[0] >= 0 && i >= res[0] && i <= res[1] ? 'success' : 'muted')),
       }),
     ],
     tone: answer ? 'success' : 'error',
@@ -624,7 +624,7 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
         {
           title: 'price by day',
           labels: days.map((d) => `day ${d}`),
-          states: days.map((_, j) =>
+          states: cellStates(days.length, (j) =>
             extra[j] ??
             (j === best
               ? 'success'

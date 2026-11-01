@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, DecisionTreeNodeViz, TextViz, Tracer, Visual } from '../types';
-import { arr, chars, chips, decisionTree, frames, grid, list, mapOf, setOf } from './helpers';
+import { arr, cellStates, chars, chips, decisionTree, frames, grid, list, mapOf, setOf } from './helpers';
 
 /** Results panel: every finished branch, with the newest one highlighted. */
 function resultsViz(title: string, items: string[]): TextViz {
@@ -525,7 +525,7 @@ function generateParenthesis(r: Recorder, n: number) {
   const sb: string[] = [];
 
   const view = (open: number, close: number, state: CellState = 'active'): Visual[] => [
-    arr(sb, { title: 'sb  (shared StringBuilder)', states: sb.map(() => state), indexed: false }),
+    arr(sb, { title: 'sb  (shared StringBuilder)', states: cellStates(sb.length, () => state), indexed: false }),
     arr([open, close, n], { title: 'counters', labels: ['open', 'close', 'n'], indexed: false }),
     frames('call stack', calls.slice().reverse()),
     resultsViz('res', res.map((x) => `"${x}"`)),
@@ -831,7 +831,7 @@ function wordSearch(r: Recorder, input: string[][], word: string) {
     }),
     arr(chars(word), {
       title: 'word',
-      states: chars(word).map((_, k) => (k === i ? ('active' as CellState) : k < i ? ('success' as CellState) : undefined)),
+      states: cellStates(chars(word).length, (k) => (k === i ? 'active' : k < i ? 'success' : undefined)),
       pointers: i < word.length ? [{ name: 'i', index: i }] : [],
     }),
     frames('call stack', calls.slice().reverse()),
@@ -945,7 +945,7 @@ function matchsticksToSquare(r: Recorder, input: number[]) {
   const sticksViz = (i: number, state: CellState = 'active') =>
     arr(sticks, {
       title: 'matchsticks',
-      states: sticks.map((_, k) => (k === i ? state : k < i ? ('done' as CellState) : undefined)),
+      states: cellStates(sticks.length, (k) => (k === i ? state : k < i ? 'done' : undefined)),
       pointers: i >= 0 && i < sticks.length ? [{ name: 'i', index: i }] : [],
     });
   const view = (i: number, state?: CellState): Visual[] => [
@@ -1082,7 +1082,7 @@ function partitionKSubsets(r: Recorder, input: number[], k: number) {
   const view = (i: number, state: CellState = 'active'): Visual[] => [
     arr(nums, {
       title: 'nums',
-      states: nums.map((_, x) => (x === i ? state : x < i ? ('done' as CellState) : undefined)),
+      states: cellStates(nums.length, (x) => (x === i ? state : x < i ? 'done' : undefined)),
       pointers: i >= 0 && i < nums.length ? [{ name: 'i', index: i }] : [],
     }),
     decisionTree(root, { title: 'decision tree  (one child per subset the next number could join)' }),
@@ -1401,7 +1401,7 @@ function subsetXORSum(r: Recorder, nums: number[]) {
   const view = (i: number, xor: number, state: CellState = 'active'): Visual[] => [
     arr(nums, {
       title: 'nums',
-      states: nums.map((_, k) => (k === i ? state : k < i ? ('visited' as CellState) : undefined)),
+      states: cellStates(nums.length, (k) => (k === i ? state : k < i ? 'visited' : undefined)),
       pointers: i < nums.length ? [{ name: 'i', index: i }] : [],
       note: `running xor: ${xor}`,
     }),

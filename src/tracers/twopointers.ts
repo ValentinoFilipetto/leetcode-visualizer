@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, at, bars, chars, chips, list } from './helpers';
+import { arr, at, bars, cellStates, chars, chips, list } from './helpers';
 
 /* ── Valid Palindrome ─────────────────────────────────────────────────────── */
 
@@ -109,13 +109,13 @@ function validPalindromeII(r: Recorder, s: string) {
         visuals: [
           arr(cs, {
             title: 's',
-            states: cs.map((_, i) =>
+            states: cellStates(cs.length, (i) =>
               i === skipped
-                ? ('muted' as CellState)
+                ? 'muted'
                 : i === a || i === b
                   ? ok
-                    ? ('success' as CellState)
-                    : ('error' as CellState)
+                    ? 'success'
+                    : 'error'
                   : undefined,
             ),
             pointers: [
@@ -160,7 +160,7 @@ function validPalindromeII(r: Recorder, s: string) {
         explain: ok
           ? `Deleting ${skipLeft ? `s[${left}]` : `s[${right}]`} leaves a palindrome.`
           : 'Neither deletion produces a palindrome.',
-        visuals: [arr(cs, { title: 's', states: cs.map(() => (ok ? ('success' as CellState) : ('error' as CellState))) })],
+        visuals: [arr(cs, { title: 's', states: cellStates(cs.length, () => (ok ? 'success' : 'error')) })],
         tone: ok ? 'success' : 'error',
         result: `return ${ok}`,
       });
@@ -189,7 +189,7 @@ function validPalindromeII(r: Recorder, s: string) {
   r.step({
     at: 'return true;@2',
     explain: 'The string was already a palindrome; the free deletion was never needed.',
-    visuals: [arr(cs, { title: 's', states: cs.map(() => 'success' as CellState) })],
+    visuals: [arr(cs, { title: 's', states: cellStates(cs.length, () => 'success') })],
     tone: 'success',
     result: 'return true',
   });
@@ -204,15 +204,15 @@ function mergeAlternately(r: Recorder, w1: string, w2: string) {
   const view = (): Visual[] => [
     arr(chars(w1), {
       title: 'word1',
-      states: chars(w1).map((_, k) => (k < i ? ('visited' as CellState) : k === i ? ('active' as CellState) : undefined)),
+      states: cellStates(chars(w1).length, (k) => (k < i ? 'visited' : k === i ? 'active' : undefined)),
       pointers: i < w1.length ? [{ name: 'i', index: i }] : [],
     }),
     arr(chars(w2), {
       title: 'word2',
-      states: chars(w2).map((_, k) => (k < j ? ('visited' as CellState) : k === j ? ('compare' as CellState) : undefined)),
+      states: cellStates(chars(w2).length, (k) => (k < j ? 'visited' : k === j ? 'compare' : undefined)),
       pointers: j < w2.length ? [{ name: 'j', index: j, tone: 2 }] : [],
     }),
-    arr(chars(res), { title: 'res', states: chars(res).map(() => 'success' as CellState) }),
+    arr(chars(res), { title: 'res', states: cellStates(chars(res).length, () => 'success') }),
   ];
 
   r.step({
@@ -245,7 +245,7 @@ function mergeAlternately(r: Recorder, w1: string, w2: string) {
         ? `One word is exhausted; append the remainder "${tail1 || tail2}" in one go. substring() is safe even when the index equals the length.`
         : 'Both words ended together, so the two substring() calls append nothing.',
     vars: { i, j, res },
-    visuals: [arr(chars(res), { title: 'res', states: chars(res).map(() => 'success' as CellState) })],
+    visuals: [arr(chars(res), { title: 'res', states: cellStates(chars(res).length, () => 'success') })],
     tone: 'success',
     result: `return "${res}"`,
   });
@@ -259,7 +259,7 @@ function removeElement(r: Recorder, nums: number[], val: number) {
   const view = (read: number, state: CellState): Visual[] => [
     arr(a, {
       title: 'nums',
-      states: a.map((_, i) => (i === read ? state : i < write ? ('success' as CellState) : i >= write && i < read ? ('muted' as CellState) : undefined)),
+      states: cellStates(a.length, (i) => (i === read ? state : i < write ? 'success' : i >= write && i < read ? 'muted' : undefined)),
       pointers: [
         { name: 'write', index: write, tone: 3 },
         ...(read >= 0 && read < a.length ? [{ name: 'read', index: read, above: false as const }] : []),
@@ -301,7 +301,7 @@ function removeElement(r: Recorder, nums: number[], val: number) {
     visuals: [
       arr(a, {
         title: 'nums',
-        states: a.map((_, i) => (i < write ? ('success' as CellState) : ('muted' as CellState))),
+        states: cellStates(a.length, (i) => (i < write ? 'success' : 'muted')),
       }),
     ],
     tone: 'success',
@@ -331,7 +331,7 @@ function rotateArray(r: Recorder, nums: number[], k: number) {
       visuals: [
         arr(a, {
           title: 'nums',
-          states: a.map((_, i) => (i >= l && i <= rr ? ('window' as CellState) : ('muted' as CellState))),
+          states: cellStates(a.length, (i) => (i >= l && i <= rr ? 'window' : 'muted')),
         }),
       ],
     });
@@ -346,7 +346,7 @@ function rotateArray(r: Recorder, nums: number[], k: number) {
         visuals: [
           arr(a, {
             title: 'nums',
-            states: a.map((_, i) => (i === x || i === y ? ('active' as CellState) : i >= l && i <= rr ? ('window' as CellState) : ('muted' as CellState))),
+            states: cellStates(a.length, (i) => (i === x || i === y ? 'active' : i >= l && i <= rr ? 'window' : 'muted')),
             pointers: [
               { name: 'l', index: x },
               { name: 'r', index: y, tone: 2 },
@@ -366,7 +366,7 @@ function rotateArray(r: Recorder, nums: number[], k: number) {
   r.step({
     at: 'public void rotate(int[] nums, int k) {',
     explain: `Three reversals rotate the array in place, using no extra memory.`,
-    visuals: [arr(a, { title: 'nums', states: a.map(() => 'success' as CellState) })],
+    visuals: [arr(a, { title: 'nums', states: cellStates(a.length, () => 'success') })],
     tone: 'success',
     result: `nums = ${list(a)}`,
   });
@@ -380,7 +380,7 @@ function twoSumII(r: Recorder, numbers: number[], target: number) {
   const view = (state: CellState): Visual[] => [
     arr(numbers, {
       title: 'numbers  (sorted)',
-      states: numbers.map((_, i) => (i === l || i === rr ? state : i < l || i > rr ? ('muted' as CellState) : undefined)),
+      states: cellStates(numbers.length, (i) => (i === l || i === rr ? state : i < l || i > rr ? 'muted' : undefined)),
       pointers: [
         { name: 'l', index: l },
         { name: 'r', index: rr, tone: 2 },
@@ -484,7 +484,7 @@ function threeSum(r: Recorder, input: number[]) {
       const view = (state: CellState) =>
         arr(nums, {
           title: 'nums (sorted)',
-          states: nums.map((_, k) => (k === i ? ('active' as CellState) : k === l || k === rr ? state : undefined)),
+          states: cellStates(nums.length, (k) => (k === i ? 'active' : k === l || k === rr ? state : undefined)),
           pointers: [
             { name: 'i', index: i },
             { name: 'l', index: l, tone: 3 },
@@ -562,7 +562,7 @@ function maxArea(r: Recorder, heights: number[]) {
   const view = (size: number, best: boolean): Visual[] => [
     bars(heights, {
       title: 'heights',
-      states: heights.map((_, i) => (i === l || i === rr ? ('active' as CellState) : i < l || i > rr ? ('muted' as CellState) : undefined)),
+      states: cellStates(heights.length, (i) => (i === l || i === rr ? 'active' : i < l || i > rr ? 'muted' : undefined)),
       pointers: [
         { name: 'l', index: l },
         { name: 'r', index: rr, tone: 2 },
@@ -642,7 +642,7 @@ function trap(r: Recorder, height: number[]) {
   const view = (active: number[], state: CellState = 'active'): Visual[] => [
     bars(height, {
       title: 'height',
-      states: height.map((_, i) => (active.includes(i) ? state : i < l || i > rr ? ('visited' as CellState) : undefined)),
+      states: cellStates(height.length, (i) => (active.includes(i) ? state : i < l || i > rr ? 'visited' : undefined)),
       pointers: [
         { name: 'l', index: l },
         { name: 'r', index: rr, tone: 2 },
@@ -747,7 +747,7 @@ function mergeSortedArrays(r: Recorder, nums1Input: number[], m: number, nums2: 
   const view = (state: CellState = 'active'): Visual[] => [
     arr(nums1, {
       title: 'nums1  (has room for m + n values)',
-      states: nums1.map((_, i) => (i === last ? state : i >= mm + nn && i <= m + n - 1 ? ('muted' as CellState) : i < mm ? ('window' as CellState) : undefined)),
+      states: cellStates(nums1.length, (i) => (i === last ? state : i >= mm + nn && i <= m + n - 1 ? 'muted' : i < mm ? 'window' : undefined)),
       pointers: [
         { name: 'm', index: Math.max(0, mm - 1), tone: 3 },
         { name: 'last', index: Math.max(0, last), tone: 2 },
@@ -755,7 +755,7 @@ function mergeSortedArrays(r: Recorder, nums1Input: number[], m: number, nums2: 
     }),
     arr(nums2, {
       title: 'nums2',
-      states: nums2.map((_, i) => (i === nn - 1 ? ('active' as CellState) : i < nn ? ('window' as CellState) : ('muted' as CellState))),
+      states: cellStates(nums2.length, (i) => (i === nn - 1 ? 'active' : i < nn ? 'window' : 'muted')),
       pointers: nn > 0 ? [{ name: 'n', index: nn - 1 }] : [],
     }),
   ];
@@ -816,7 +816,7 @@ function mergeSortedArrays(r: Recorder, nums1Input: number[], m: number, nums2: 
   r.step({
     at: 'public void merge(int[] nums1, int m, int[] nums2, int n) {',
     explain: 'nums1 now holds all m + n values in sorted order.',
-    visuals: [arr(nums1, { title: 'nums1', states: nums1.map(() => 'success' as CellState) })],
+    visuals: [arr(nums1, { title: 'nums1', states: cellStates(nums1.length, () => 'success') })],
     tone: 'success',
     result: `nums1 = ${list(nums1)}`,
   });
@@ -832,7 +832,7 @@ function reverseString(r: Recorder, input: string) {
   const view = (state: CellState = 'active'): Visual[] => [
     arr(s, {
       title: 's',
-      states: s.map((_, i) => (i === left || i === right ? state : i < left || i > right ? ('success' as CellState) : undefined)),
+      states: cellStates(s.length, (i) => (i === left || i === right ? state : i < left || i > right ? 'success' : undefined)),
       pointers: [
         { name: 'left', index: left },
         { name: 'right', index: right, tone: 2 },
@@ -868,7 +868,7 @@ function reverseString(r: Recorder, input: string) {
   r.step({
     at: 'public void reverseString(char[] s) {',
     explain: 'The string is fully reversed in place.',
-    visuals: [arr(s, { title: 's', states: s.map(() => 'success' as CellState) })],
+    visuals: [arr(s, { title: 's', states: cellStates(s.length, () => 'success') })],
     tone: 'success',
     result: `s = [${s.map((c) => `'${c}'`).join(', ')}]`,
   });

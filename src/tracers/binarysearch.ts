@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, bars, grid } from './helpers';
+import { arr, bars, cellStates, grid } from './helpers';
 
 /** Shared look for "search space" arrays: everything outside [l, r] is dimmed. */
 function searchView(
@@ -13,7 +13,7 @@ function searchView(
 ): Visual {
   return arr(values, {
     title,
-    states: values.map((_, i) => (i === m ? mState : i >= l && i <= rr ? ('window' as CellState) : ('muted' as CellState))),
+    states: cellStates(values.length, (i) => (i === m ? mState : i >= l && i <= rr ? 'window' : 'muted')),
     pointers: [
       { name: 'left', index: l },
       ...(m >= 0 ? [{ name: 'm', index: m, tone: 3 as const, above: false as const }] : []),
@@ -70,7 +70,7 @@ function binarySearch(r: Recorder, nums: number[], target: number) {
     at: 'return -1;',
     explain: `left (${left}) passed right (${right}); the range is empty, so ${target} is not in the array.`,
     vars: { left, right },
-    visuals: [arr(nums, { title: 'nums', states: nums.map(() => 'muted' as CellState) })],
+    visuals: [arr(nums, { title: 'nums', states: cellStates(nums.length, () => 'muted') })],
     tone: 'error',
     result: 'return -1',
   });
@@ -83,7 +83,7 @@ function findMin(r: Recorder, nums: number[]) {
     r.step({
       at: 'if (nums[0] < nums[nums.length - 1]) return nums[0];',
       explain: `nums[0] = ${nums[0]} is smaller than the last element, so the array was never rotated and the first element is the minimum.`,
-      visuals: [arr(nums, { title: 'nums', states: nums.map((_, i) => (i === 0 ? ('success' as CellState) : undefined)) })],
+      visuals: [arr(nums, { title: 'nums', states: cellStates(nums.length, (i) => (i === 0 ? 'success' : undefined)) })],
       tone: 'success',
       result: `return ${nums[0]}`,
     });
@@ -125,7 +125,7 @@ function findMin(r: Recorder, nums: number[]) {
     at: 'return nums[left];',
     explain: `left and right met at index ${left} — the rotation point, which holds the minimum.`,
     vars: { left, right },
-    visuals: [arr(nums, { title: 'nums  (rotated)', states: nums.map((_, i) => (i === left ? ('success' as CellState) : ('muted' as CellState))) })],
+    visuals: [arr(nums, { title: 'nums  (rotated)', states: cellStates(nums.length, (i) => (i === left ? 'success' : 'muted')) })],
     tone: 'success',
     result: `return ${nums[left]}`,
   });
@@ -175,7 +175,7 @@ function searchRotated(r: Recorder, nums: number[], target: number) {
     visuals: [
       arr(nums, {
         title: 'nums  (rotated)',
-        states: nums.map((_, i) => (i === pivot ? ('done' as CellState) : i < pivot ? ('window' as CellState) : ('compare' as CellState))),
+        states: cellStates(nums.length, (i) => (i === pivot ? 'done' : i < pivot ? 'window' : 'compare')),
         pointers: [{ name: 'pivot', index: pivot, tone: 4 }],
       }),
     ],
@@ -233,7 +233,7 @@ function searchRotated(r: Recorder, nums: number[], target: number) {
   r.step({
     at: 'return -1;',
     explain: `${target} is not present in either run.`,
-    visuals: [arr(nums, { title: 'nums  (rotated)', states: nums.map(() => 'muted' as CellState) })],
+    visuals: [arr(nums, { title: 'nums  (rotated)', states: cellStates(nums.length, () => 'muted') })],
     tone: 'error',
     result: 'return -1',
   });
@@ -428,7 +428,7 @@ function timeStore(r: Recorder, ops: TimeOp[]) {
       entries.map((e) => `${e.name}@${e.timestamp}`),
       {
         title: `map["${key}"]  (append-only, so timestamps are sorted)`,
-        states: entries.map((_, i) => (i === m ? mState : l >= 0 && i >= l && i <= rr ? ('window' as CellState) : l >= 0 ? ('muted' as CellState) : undefined)),
+        states: cellStates(entries.length, (i) => (i === m ? mState : l >= 0 && i >= l && i <= rr ? 'window' : l >= 0 ? 'muted' : undefined)),
         pointers:
           l >= 0
             ? [
