@@ -6,7 +6,7 @@ import { arr, cellStates, chars, chips, decisionTree, frames, grid, list, mapOf,
 function resultsViz(title: string, items: string[]): TextViz {
   return {
     ...chips(title, items, { emptyHint: '[]' }),
-    lines: items.map((text, i) => ({ text, state: i === items.length - 1 ? ('success' as CellState) : undefined })),
+    lines: items.map((text, i) => ({ text, state: i === items.length - 1 ? 'success' : undefined })),
   };
 }
 
@@ -826,7 +826,7 @@ function wordSearch(r: Recorder, input: string[][], word: string) {
       title: "board  ('#' marks cells used by the current path)",
       cursor: rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS ? [rr, cc] : undefined,
       states: board.map((row, r2) =>
-        row.map((v, c2) => (r2 === rr && c2 === cc ? state : v === '#' ? ('window' as CellState) : undefined)),
+        row.map((v, c2) => (r2 === rr && c2 === cc ? state : v === '#' ? 'window' : undefined)),
       ),
     }),
     arr(chars(word), {

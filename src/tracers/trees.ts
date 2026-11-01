@@ -528,7 +528,7 @@ function levelOrder(r: Recorder, values: (number | null)[], rightSideOnly = fals
       explain: `The queue holds exactly the ${levelSize} node(s) of this level — capture that size before adding children, otherwise levels bleed into each other.${rightSideOnly ? '' : ' Open an empty list for the level.'}`,
       vars: { levelSize },
       visuals: [
-        tv('tree', root, { states: { ...done, ...Object.fromEntries(q.map((n) => [n.id, 'window' as CellState])) } }),
+        tv('tree', root, { states: { ...done, ...Object.fromEntries(q.map((n) => [n.id, 'window'])) } }),
         queue('queue', q.map((n) => n.val)),
         resViz(),
       ],
@@ -563,7 +563,7 @@ function levelOrder(r: Recorder, values: (number | null)[], rightSideOnly = fals
           tv('tree', root, {
             states: {
               ...done,
-              ...Object.fromEntries(q.map((x) => [x.id, 'window' as CellState])),
+              ...Object.fromEntries(q.map((x) => [x.id, 'window'])),
               [n.id]: rightSideOnly && last ? 'success' : 'active',
             },
           }),

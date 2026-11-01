@@ -59,7 +59,7 @@ function twoSum(r: Recorder, nums: number[], target: number) {
             entries: [...seen].map(([key, value]) => ({
               key,
               value,
-              state: key === complement ? ('success' as CellState) : undefined,
+              state: key === complement ? 'success' : undefined,
             })),
           },
         ],
@@ -101,7 +101,7 @@ function containsDuplicate(r: Recorder, nums: number[]) {
       ...setOf('seen', seen),
       entries: [...seen].map((key) => ({
         key,
-        state: hit === key ? ('error' as CellState) : undefined,
+        state: hit === key ? 'error' : undefined,
       })),
     },
   ];
@@ -160,7 +160,7 @@ function isAnagram(r: Recorder, s: string, t: string) {
       labels: letters,
       indexed: false,
       states: counts.map((c, i) =>
-        active.includes(i) ? state : c !== 0 ? ('compare' as CellState) : undefined,
+        active.includes(i) ? state : c !== 0 ? 'compare' : undefined,
       ),
     });
 
@@ -248,7 +248,7 @@ function longestPalindrome(r: Recorder, s: string) {
         arr(chars(s), { title: 's', states: at(s.length, [i], 'active'), pointers: [{ name: 'c', index: i }] }),
         {
           ...mapOf('frequencyMap', freq),
-          entries: [...freq].map(([key, value]) => ({ key, value, state: key === c ? ('active' as CellState) : undefined })),
+          entries: [...freq].map(([key, value]) => ({ key, value, state: key === c ? 'active' : undefined })),
         },
       ],
     });
@@ -269,7 +269,7 @@ function longestPalindrome(r: Recorder, s: string) {
             entries: [...freq].map(([key, value]) => ({
               key,
               value,
-              state: key === c ? ('success' as CellState) : undefined,
+              state: key === c ? 'success' : undefined,
             })),
           },
         ],
@@ -287,7 +287,7 @@ function longestPalindrome(r: Recorder, s: string) {
             entries: [...freq].map(([key, value]) => ({
               key,
               value,
-              state: key === c ? ('compare' as CellState) : undefined,
+              state: key === c ? 'compare' : undefined,
             })),
           },
         ],
@@ -318,7 +318,7 @@ function groupAnagrams(r: Recorder, strs: string[]) {
     emptyHint: '{}',
     lines: [...groups].map(([k, v]) => ({
       text: `${k} → [${v.join(', ')}]`,
-      state: k === activeKey ? ('active' as CellState) : undefined,
+      state: k === activeKey ? 'active' : undefined,
     })),
   });
 
@@ -346,7 +346,7 @@ function groupAnagrams(r: Recorder, strs: string[]) {
           title: 'pattern[26]',
           indexed: false,
           labels: Array.from({ length: 26 }, (_, k) => String.fromCharCode(97 + k)),
-          states: pattern.map((v: number) => (v > 0 ? ('compare' as CellState) : undefined)),
+          states: pattern.map((v: number) => (v > 0 ? 'compare' : undefined)),
         }),
         groupsViz(),
       ],
@@ -401,7 +401,7 @@ function longestConsecutive(r: Recorder, nums: number[]) {
             ...setOf('set', sorted),
             entries: sorted.map((key) => ({
               key,
-              state: key === num ? ('muted' as CellState) : key === num - 1 ? ('compare' as CellState) : undefined,
+              state: key === num ? 'muted' : key === num - 1 ? 'compare' : undefined,
             })),
           },
         ],
@@ -419,7 +419,7 @@ function longestConsecutive(r: Recorder, nums: number[]) {
         arr(nums, { title: 'nums', states: at(nums.length, [i], 'active'), pointers: [{ name: 'num', index: i }] }),
         {
           ...setOf('set', sorted),
-          entries: sorted.map((key) => ({ key, state: key === num ? ('active' as CellState) : undefined })),
+          entries: sorted.map((key) => ({ key, state: key === num ? 'active' : undefined })),
         },
       ],
     });
@@ -438,7 +438,7 @@ function longestConsecutive(r: Recorder, nums: number[]) {
             ...setOf('set', sorted),
             entries: sorted.map((key) => ({
               key,
-              state: key >= runStart && key < curNum ? ('window' as CellState) : undefined,
+              state: key >= runStart && key < curNum ? 'window' : undefined,
             })),
           },
         ],
@@ -456,7 +456,7 @@ function longestConsecutive(r: Recorder, nums: number[]) {
           ...setOf('set', sorted),
           entries: sorted.map((key) => ({
             key,
-            state: key >= num && key < num + length ? ('success' as CellState) : undefined,
+            state: key >= num && key < num + length ? 'success' : undefined,
           })),
         },
       ],
@@ -486,7 +486,7 @@ function topKFrequent(r: Recorder, nums: number[], k: number) {
         labels: buckets.map((_, i) => `${i}×`),
         indexed: false,
         states: buckets.map((b, i) =>
-          i === active ? ('active' as CellState) : b.length ? ('compare' as CellState) : undefined,
+          i === active ? 'active' : b.length ? 'compare' : undefined,
         ),
       },
     );
@@ -510,7 +510,7 @@ function topKFrequent(r: Recorder, nums: number[], k: number) {
         arr(nums, { title: 'nums', states: at(nums.length, [i], 'active'), pointers: [{ name: 'n', index: i }] }),
         {
           ...mapOf('count', count),
-          entries: [...count].map(([key, value]) => ({ key, value, state: key === n ? ('active' as CellState) : undefined })),
+          entries: [...count].map(([key, value]) => ({ key, value, state: key === n ? 'active' : undefined })),
         },
         bucketViz(),
       ],
@@ -526,7 +526,7 @@ function topKFrequent(r: Recorder, nums: number[], k: number) {
       visuals: [
         {
           ...mapOf('count', count),
-          entries: [...count].map(([key, v]) => ({ key, value: v, state: key === value ? ('active' as CellState) : undefined })),
+          entries: [...count].map(([key, v]) => ({ key, value: v, state: key === value ? 'active' : undefined })),
         },
         bucketViz(freq),
       ],
@@ -592,9 +592,9 @@ function validSudoku(r: Recorder, board: string[][]) {
           i === rr && j === cc
             ? state
             : Math.floor(i / 3) === Math.floor(rr / 3) && Math.floor(j / 3) === Math.floor(cc / 3)
-              ? ('window' as CellState)
+              ? 'window'
               : i === rr || j === cc
-                ? ('visited' as CellState)
+                ? 'visited'
                 : undefined,
         ),
       ),
@@ -604,7 +604,7 @@ function validSudoku(r: Recorder, board: string[][]) {
     const key = `${Math.floor(rr / 3)},${Math.floor(cc / 3)}`;
     const paint = (values: Iterable<string>, title: string): Visual => ({
       ...setOf(title, [...values].sort()),
-      entries: [...values].sort().map((k) => ({ key: k, state: k === digit ? ('error' as CellState) : undefined })),
+      entries: [...values].sort().map((k) => ({ key: k, state: k === digit ? 'error' : undefined })),
     });
     return [
       paint(rows.get(rr) ?? [], `rows[${rr}]`),
@@ -753,7 +753,7 @@ function encodeDecode(r: Recorder, strs: string[]) {
   r.step({
     at: 'return res;',
     explain: 'The decoded list matches the original input exactly.',
-    visuals: [{ kind: 'text', title: 'res', chips: true, lines: res.map((s) => ({ text: `"${s}"`, state: 'success' as CellState })) }],
+    visuals: [{ kind: 'text', title: 'res', chips: true, lines: res.map((s) => ({ text: `"${s}"`, state: 'success' })) }],
     tone: 'success',
     result: `decode(…) = [${res.map((s) => `"${s}"`).join(', ')}]`,
   });

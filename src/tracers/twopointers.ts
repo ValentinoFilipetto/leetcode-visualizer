@@ -77,7 +77,7 @@ function validPalindrome(r: Recorder, s: string) {
     at: 'return true;',
     explain: 'The pointers met in the middle with every comparison matching.',
     vars: { l, r: rr },
-    visuals: view(Math.min(l, cs.length - 1), Math.max(rr, 0), cs.map(() => 'success' as CellState)),
+    visuals: view(Math.min(l, cs.length - 1), Math.max(rr, 0), cs.map(() => 'success')),
     tone: 'success',
     result: 'return true',
   });
@@ -514,7 +514,7 @@ function threeSum(r: Recorder, input: number[]) {
           at: 'res.add(Arrays.asList(nums[i], nums[l], nums[r]));',
           explain: `${nums[i]} + ${nums[l]} + ${nums[rr]} = 0 — a triplet.`,
           vars: { i, l, r: rr, sum },
-          visuals: [view('success'), chips('res', res.map((t) => `[${t.join(', ')}]`), { lines: res.map((t, k) => ({ text: `[${t.join(', ')}]`, state: k === res.length - 1 ? ('success' as CellState) : undefined })) })],
+          visuals: [view('success'), chips('res', res.map((t) => `[${t.join(', ')}]`), { lines: res.map((t, k) => ({ text: `[${t.join(', ')}]`, state: k === res.length - 1 ? 'success' : undefined })) })],
           tone: 'success',
         });
         l++;

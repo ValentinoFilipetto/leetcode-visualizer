@@ -310,7 +310,7 @@ function designTwitter(r: Recorder, ops: TwitterOp[]) {
     chips: false,
     lines: [...tweets].map(([user, list_]) => ({
       text: `${user}: ${list_.map(([id, t]) => `#${id}@t${t}`).join('  ')}`,
-      state: user === activeUser ? ('active' as CellState) : undefined,
+      state: user === activeUser ? 'active' : undefined,
     })),
   });
 
@@ -944,7 +944,7 @@ function topKFrequentWords(r: Recorder, words: string[], k: number) {
       states: cellStates(words.length, (x) => (o.i === undefined ? undefined : x === o.i ? 'active' : x < o.i ? 'visited' : undefined)),
     }),
     mapOf('frequenciesMap', [], {
-      entries: [...frequenciesMap].map(([key, value]) => ({ key, value, state: key === o.key ? ('active' as CellState) : undefined })),
+      entries: [...frequenciesMap].map(([key, value]) => ({ key, value, state: key === o.key ? 'active' : undefined })),
     }),
     heap(`minHeap  (the best ${k} so far, weakest on top)`, h.items.map(fmt), 'min', {
       states: cellStates(h.items.length, (x) => (x === 0 ? o.rootState : undefined)),
@@ -1025,7 +1025,7 @@ function searchSuggestions(r: Recorder, products: string[], searchWord: string) 
     emptyHint: '[]',
     lines: res.map((row, i) => ({
       text: `${searchWord.slice(0, i + 1)}: [${row.join(', ')}]`,
-      state: i === activeRow ? ('active' as CellState) : undefined,
+      state: i === activeRow ? 'active' : undefined,
     })),
   });
 

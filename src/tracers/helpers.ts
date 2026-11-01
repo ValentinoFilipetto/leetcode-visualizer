@@ -27,12 +27,7 @@ import type {
  * builder takes a snapshot instead.
  */
 
-/**
- * One state per cell, for `arr`/`bars` `states`. Building them with `values.map(...)` instead
- * widens string literals to `string` (map infers its result from the callback alone), which forced
- * an `as CellState` on every literal; here the callback's return type is declared, so plain
- * literals type-check, and a misspelled state is an error.
- */
+/** One state per cell, for `arr`/`bars` `states`: `stateAt(i)` for every index below `length`. */
 export function cellStates(length: number, stateAt: (i: number) => CellState | undefined): (CellState | undefined)[] {
   return Array.from({ length }, (_, i) => stateAt(i));
 }

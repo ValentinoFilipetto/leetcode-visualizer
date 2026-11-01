@@ -258,7 +258,7 @@ function kokoEatingBananas(r: Recorder, piles: number[], h: number) {
     }),
     arr(rates, {
       title: 'candidate eating rates',
-      states: rates.map((v) => (v === m ? state : v >= left && v <= right ? ('window' as CellState) : ('muted' as CellState))),
+      states: rates.map((v) => (v === m ? state : v >= left && v <= right ? 'window' : 'muted')),
       labels: rates.map(() => ''),
       indexed: false,
       pointers: [
@@ -335,7 +335,7 @@ function searchMatrix(r: Recorder, matrix: number[][], target: number) {
       visuals: [
         grid(matrix, {
           title: 'matrix',
-          states: matrix.map((rw, ri) => rw.map(() => (ri === i ? (fits ? ('success' as CellState) : ('error' as CellState)) : undefined))),
+          states: matrix.map((rw, ri) => rw.map(() => (ri === i ? (fits ? 'success' : 'error') : undefined))),
         }),
       ],
       tone: fits ? 'success' : 'neutral',
@@ -346,7 +346,7 @@ function searchMatrix(r: Recorder, matrix: number[][], target: number) {
     r.step({
       at: 'if (indexToSearch == -1) return false;',
       explain: `No row covers ${target}.`,
-      visuals: [grid(matrix, { title: 'matrix', states: matrix.map((rw) => rw.map(() => 'muted' as CellState)) })],
+      visuals: [grid(matrix, { title: 'matrix', states: matrix.map((rw) => rw.map(() => 'muted')) })],
       tone: 'error',
       result: 'return false',
     });
@@ -363,7 +363,7 @@ function searchMatrix(r: Recorder, matrix: number[][], target: number) {
     visuals: [
       grid(matrix, {
         title: 'matrix',
-        states: matrix.map((rw, ri) => rw.map(() => (ri === indexToSearch ? ('window' as CellState) : ('muted' as CellState)))),
+        states: matrix.map((rw, ri) => rw.map(() => (ri === indexToSearch ? 'window' : 'muted'))),
       }),
       searchView(row, left, right, -1, `matrix[${indexToSearch}]`),
     ],
@@ -396,7 +396,7 @@ function searchMatrix(r: Recorder, matrix: number[][], target: number) {
           grid(matrix, {
             title: 'matrix',
             cursor: [indexToSearch, m],
-            states: matrix.map((rw, ri) => rw.map((_, ci) => (ri === indexToSearch && ci === m ? ('success' as CellState) : undefined))),
+            states: matrix.map((rw, ri) => rw.map((_, ci) => (ri === indexToSearch && ci === m ? 'success' : undefined))),
           }),
           searchView(row, left, right, m, `matrix[${indexToSearch}]`, 'success'),
         ],

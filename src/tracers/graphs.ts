@@ -565,7 +565,7 @@ function cloneGraph(r: Recorder, adjacency: number[][]) {
 
   const view = (active?: string, state: CellState = 'active'): Visual[] => [
     graphViz(
-      nodes.map((id) => ({ id, label: id, state: id === active ? state : cloned.has(id) ? ('visited' as CellState) : undefined })),
+      nodes.map((id) => ({ id, label: id, state: id === active ? state : cloned.has(id) ? 'visited' : undefined })),
       edges,
       { title: 'original graph' },
     ),
@@ -648,7 +648,7 @@ function courseSchedule(r: Recorder, numCourses: number, prerequisites: number[]
       ids.map((id, i) => ({
         id,
         label: id,
-        state: i === active ? 'active' : done.has(i) ? ('done' as CellState) : q.includes(i) ? ('window' as CellState) : undefined,
+        state: i === active ? 'active' : done.has(i) ? 'done' : q.includes(i) ? 'window' : undefined,
         badge: `in ${indegree[i]}`,
       })),
       edges,
@@ -656,7 +656,7 @@ function courseSchedule(r: Recorder, numCourses: number, prerequisites: number[]
     ),
     arr(indegree, {
       title: 'indegree  (unmet prerequisites per course)',
-      states: indegree.map((v: number, i: number) => (i === active ? ('active' as CellState) : v === 0 && !done.has(i) ? ('success' as CellState) : undefined)),
+      states: indegree.map((v: number, i: number) => (i === active ? 'active' : v === 0 && !done.has(i) ? 'success' : undefined)),
     }),
     queue('queue  (courses with no prerequisites left)', q),
     ...(withOrder ? [arr(res, { title: 'res', states: cellStates(res.length, () => 'success') })] : []),
@@ -762,7 +762,7 @@ function countComponents(r: Recorder, n: number, edges: number[][]) {
       graphEdges,
       { title: 'graph', note: `components: ${components}` },
     ),
-    arr(parents, { title: 'parents', states: parents.map((p: number, i: number) => (p !== i ? ('done' as CellState) : undefined)) }),
+    arr(parents, { title: 'parents', states: parents.map((p: number, i: number) => (p !== i ? 'done' : undefined)) }),
     arr(sizes, { title: 'sizes' }),
   ];
 

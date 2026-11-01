@@ -55,7 +55,7 @@ function isHappy(r: Recorder, start: number) {
     visuals: [
       {
         ...setOf('seen', seen),
-        entries: [...seen].map((key) => ({ key, state: key === n ? ('error' as CellState) : undefined })),
+        entries: [...seen].map((key) => ({ key, state: key === n ? 'error' : undefined })),
       },
     ],
     tone: 'error',
@@ -172,7 +172,7 @@ function majorityElement(r: Recorder, nums: number[]) {
     at: 'return res;',
     explain: `A value appearing more than n/2 times cannot be cancelled away, so the surviving candidate ${res} is the majority element.`,
     vars: { res, count },
-    visuals: [arr(nums, { title: 'nums', states: nums.map((v) => (v === res ? ('success' as CellState) : ('muted' as CellState))) })],
+    visuals: [arr(nums, { title: 'nums', states: nums.map((v) => (v === res ? 'success' : 'muted')) })],
     tone: 'success',
     result: `return ${res}`,
   });
@@ -341,7 +341,7 @@ function findDuplicate(r: Recorder, input: number[]) {
   const view = (i: number, index: number, state: CellState): Visual[] => [
     arr(nums, {
       title: 'nums  (a negative value marks "index already visited")',
-      states: nums.map((v, k) => (k === index ? state : k === i ? ('active' as CellState) : v < 0 ? ('visited' as CellState) : undefined)),
+      states: nums.map((v, k) => (k === index ? state : k === i ? 'active' : v < 0 ? 'visited' : undefined)),
       pointers: [
         { name: 'num', index: i },
         { name: 'index', index, tone: 2 },

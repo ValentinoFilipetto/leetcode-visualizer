@@ -64,9 +64,9 @@ Then add the map to `src/tracers/index.ts`.
 `src/tracers/helpers.ts` wraps the renderers: `arr`, `bars`, `grid`, `mapOf`, `setOf`, `stack`,
 `queue`, `frames` (call stack), `chips`, `heap`, `intervalsViz`, `tree`, `listViz`, `graphViz`.
 Cell states (`active`, `compare`, `window`, `visited`, `done`, `success`, `error`, `muted`) carry
-the colour language across every problem, so keep their meaning consistent. Build an `arr`/`bars`
-`states` array with `cellStates(values.length, (i) => …)` rather than `values.map(…)`: its callback
-is typed, so state literals need no `as CellState` cast and a typo is a compile error.
+the colour language across every problem, so keep their meaning consistent. State literals need no
+`as CellState` cast: passed straight into a visual's `states`/`entries`, they are already checked
+against `CellState`, so a typo is a compile error — and a cast would hide it.
 
 ## 3. Check
 

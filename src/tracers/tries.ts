@@ -87,7 +87,7 @@ function implementTrie(r: Recorder, ops: TrieOp[]) {
             : `insert("${word}"): '${c}' is new, so create a node for it.`,
           vars: { word, c, i },
           visuals: [
-            trieViz(root, Object.fromEntries(path.map((id, k) => [id, k === path.length - 1 ? (existed ? 'active' : 'success') : ('visited' as CellState)]))),
+            trieViz(root, Object.fromEntries(path.map((id, k) => [id, k === path.length - 1 ? (existed ? 'active' : 'success') : 'visited']))),
             arr(chars(word), { title: 'word', states: cellStates(chars(word).length, (k) => (k === i ? 'active' : k < i ? 'visited' : undefined)) }),
           ],
           tone: existed ? 'neutral' : 'success',
@@ -131,7 +131,7 @@ function implementTrie(r: Recorder, ops: TrieOp[]) {
         explain: `${op[0]}("${word}"): follow the '${c}' edge.`,
         vars: { word, c, i },
         visuals: [
-          trieViz(root, Object.fromEntries(path.map((id, k) => [id, k === path.length - 1 ? ('active' as CellState) : ('visited' as CellState)]))),
+          trieViz(root, Object.fromEntries(path.map((id, k) => [id, k === path.length - 1 ? 'active' : 'visited']))),
           arr(chars(word), { title: op[0] === 'search' ? 'word' : 'prefix', states: cellStates(chars(word).length, (k) => (k === i ? 'active' : k < i ? 'visited' : undefined)) }),
         ],
       });
@@ -247,7 +247,7 @@ function addAndSearch(r: Recorder, ops: WordOp[]) {
         explain: `'.' matches anything, so every one of the ${curr.children.size} child branch(es) has to be tried until one succeeds.`,
         vars: { i, branches: curr.children.size },
         visuals: [
-          trieViz(root, Object.fromEntries([...curr.children.values()].map((k) => [k.id, 'compare' as CellState]))),
+          trieViz(root, Object.fromEntries([...curr.children.values()].map((k) => [k.id, 'compare']))),
           arr(chars(word), { title: 'word', states: cellStates(chars(word).length, (k) => (k === i ? 'compare' : undefined)) }),
           frames('call stack', calls.slice().reverse()),
         ],

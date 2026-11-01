@@ -75,7 +75,7 @@ function insertInterval(r: Recorder, intervals: Iv[], newIntervalInput: Iv) {
   const view = (i: number, state: CellState): Visual[] => [
     rows(
       intervals,
-      (k) => (k === i ? state : k < i ? ('muted' as CellState) : undefined),
+      (k) => (k === i ? state : k < i ? 'muted' : undefined),
       'intervals (already sorted)',
       newInterval ? [{ start: newInterval[0], end: newInterval[1], label: `new ${fmt(newInterval)}`, state: 'compare' }] : [],
     ),
@@ -107,7 +107,7 @@ function insertInterval(r: Recorder, intervals: Iv[], newIntervalInput: Iv) {
         at: ['} else if (interval[0] > newInterval[1]) {', 'res.add(newInterval);@1', 'newInterval = null;'],
         explain: `${fmt(interval)} starts at ${interval[0]}, after the new interval ends at ${newInterval[1]}. The merge window is closed: place the new interval first, then this one.`,
         vars: { i, inserted: fmt(newInterval) },
-        visuals: [rows(intervals, (k) => (k === i ? 'active' : k < i ? ('muted' as CellState) : undefined), 'intervals'), rows(res, () => 'success', 'res')],
+        visuals: [rows(intervals, (k) => (k === i ? 'active' : k < i ? 'muted' : undefined), 'intervals'), rows(res, () => 'success', 'res')],
         tone: 'success',
       });
       newInterval = null;
@@ -208,7 +208,7 @@ function eraseOverlapIntervals(r: Recorder, input: Iv[]) {
   const view = (i: number, state: CellState): Visual[] => [
     rows(
       intervals,
-      (k) => (removed.has(k) ? 'error' : k === i + 1 ? state : k <= i ? ('done' as CellState) : undefined),
+      (k) => (removed.has(k) ? 'error' : k === i + 1 ? state : k <= i ? 'done' : undefined),
       `intervals (sorted by start) · lastEnd = ${lastEnd}`,
     ),
   ];
@@ -233,7 +233,7 @@ function eraseOverlapIntervals(r: Recorder, input: Iv[]) {
         visuals: [
           rows(
             intervals,
-            (k) => (removed.has(k) ? 'error' : k === i + 1 ? 'compare' : k <= i ? ('done' as CellState) : undefined),
+            (k) => (removed.has(k) ? 'error' : k === i + 1 ? 'compare' : k <= i ? 'done' : undefined),
             `intervals · lastEnd = ${keptEnd}`,
           ),
         ],

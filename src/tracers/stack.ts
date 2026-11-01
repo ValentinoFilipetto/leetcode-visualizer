@@ -227,7 +227,7 @@ function dailyTemperatures(r: Recorder, temperatures: number[]) {
       st.map(([t, idx]) => `${t}°  @${idx}`),
       topState,
     ),
-    arr(res, { title: 'res', states: res.map((v: number) => (v ? ('success' as CellState) : undefined)) }),
+    arr(res, { title: 'res', states: res.map((v: number) => (v ? 'success' : undefined)) }),
   ];
 
   r.step({

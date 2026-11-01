@@ -91,7 +91,7 @@ function containsNearbyDuplicate(r: Recorder, nums: number[], k: number) {
     }),
     {
       ...setOf('seen', seen),
-      entries: [...seen].map((key) => ({ key, state: key === hit ? ('success' as CellState) : undefined })),
+      entries: [...seen].map((key) => ({ key, state: key === hit ? 'success' : undefined })),
     },
   ];
 
@@ -195,7 +195,7 @@ function maxSlidingWindow(r: Recorder, nums: number[], k: number) {
         ? `nums[${rr}] = ${nums[rr]} beats ${popped.map((i) => `nums[${i}] = ${nums[i]}`).join(', ')}. Those are smaller and leave the window sooner, so they can never be a max again: drop them from the back.`
         : `Nothing at the back of the deque is smaller than ${nums[rr]}, so just append index ${rr}: it may become the max once the bigger values ahead of it leave.`,
       vars: { l, r: rr, 'nums[r]': nums[rr] },
-      visuals: view({ [rr]: 'active', ...Object.fromEntries(popped.map((i) => [i, 'error' as CellState])) }),
+      visuals: view({ [rr]: 'active', ...Object.fromEntries(popped.map((i) => [i, 'error'])) }),
     });
 
     if (l > q[0]) {
@@ -252,7 +252,7 @@ function lengthOfLongestSubstring(r: Recorder, s: string) {
     }),
     {
       ...setOf('charSet', set),
-      entries: [...set].map((key) => ({ key, state: key === hit ? ('error' as CellState) : undefined })),
+      entries: [...set].map((key) => ({ key, state: key === hit ? 'error' : undefined })),
     },
   ];
 
@@ -385,7 +385,7 @@ function checkInclusion(r: Recorder, s1: string, s2: string) {
         title,
         labels: used.map((i) => letters[i]),
         indexed: false,
-        states: used.map((i) => (i === highlight ? ('active' as CellState) : values[i] > 0 ? ('compare' as CellState) : undefined)),
+        states: used.map((i) => (i === highlight ? 'active' : values[i] > 0 ? 'compare' : undefined)),
       },
     );
 
@@ -535,7 +535,7 @@ function minWindow(r: Recorder, s: string, t: string) {
         .map(([key, value]) => ({
           key,
           value,
-          state: countT.has(key) ? (value >= countT.get(key)! ? ('success' as CellState) : ('compare' as CellState)) : undefined,
+          state: countT.has(key) ? (value >= countT.get(key)! ? 'success' : 'compare') : undefined,
         })),
     },
   ];
@@ -686,7 +686,7 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
             ? `Day ${day} costs ${p}, cheaper than ${popped.map((j) => `day ${startDay + j} (${price[j]})`).join(', ')}. Those can never be a window's cheapest again — day ${day} is cheaper and stays longer — so drop them from the back.`
             : `Day ${day} costs ${p}. Nothing at the back is pricier, so just append it${tie ? ` — day ${startDay + dq[dq.length - 2]} costs the same and stays in front, so ties go to the earliest day` : ''}.`) + filling,
         vars: { i, day, p, windowStart },
-        visuals: view(i, { [i]: 'active', ...Object.fromEntries(popped.map((j) => [j, 'error' as CellState])) }),
+        visuals: view(i, { [i]: 'active', ...Object.fromEntries(popped.map((j) => [j, 'error'])) }),
       });
     } else {
       r.step({

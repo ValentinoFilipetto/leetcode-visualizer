@@ -121,7 +121,7 @@ function reverseList(r: Recorder, values: number[]) {
   r.step({
     at: 'return prev;',
     explain: 'curr fell off the end, so prev is the head of the fully reversed list.',
-    visuals: [lv('reversed list', prev, { states: Object.fromEntries(walk(prev).nodes.map((n) => [n.id, 'success' as CellState])) })],
+    visuals: [lv('reversed list', prev, { states: Object.fromEntries(walk(prev).nodes.map((n) => [n.id, 'success'])) })],
     tone: 'success',
     result: `return ${walk(prev).nodes.map((n) => n.val).join(' → ')}`,
   });
@@ -199,7 +199,7 @@ function mergeTwoLists(r: Recorder, a: number[], b: number[]) {
   r.step({
     at: 'return dummyNode.next;',
     explain: 'Skip the dummy and return the real head.',
-    visuals: [lv('merged', dummy.next, { states: Object.fromEntries(walk(dummy.next).nodes.map((n) => [n.id, 'success' as CellState])) })],
+    visuals: [lv('merged', dummy.next, { states: Object.fromEntries(walk(dummy.next).nodes.map((n) => [n.id, 'success'])) })],
     tone: 'success',
     result: `return ${walk(dummy.next).nodes.map((n) => n.val).join(' → ')}`,
   });
@@ -218,7 +218,7 @@ function hasCycle(r: Recorder, values: number[], cycleIndex: number) {
     lv('head', head, {
       states: {
         ...(slow ? { [slow.id]: state } : {}),
-        ...(fast ? { [fast.id]: slow === fast ? state : ('compare' as CellState) } : {}),
+        ...(fast ? { [fast.id]: slow === fast ? state : 'compare' } : {}),
       },
       pointers: [
         { name: 'slow', node: slow },
@@ -330,7 +330,7 @@ function addTwoNumbers(r: Recorder, a: number[], b: number[]) {
   r.step({
     at: 'return dummy.next;',
     explain: 'dummy.next is the head of the sum.',
-    visuals: [lv('result', dummy.next, { states: Object.fromEntries(walk(dummy.next).nodes.map((n) => [n.id, 'success' as CellState])) })],
+    visuals: [lv('result', dummy.next, { states: Object.fromEntries(walk(dummy.next).nodes.map((n) => [n.id, 'success'])) })],
     tone: 'success',
     result: `return ${walk(dummy.next).nodes.map((n) => n.val).join(' → ')}`,
   });
@@ -351,7 +351,7 @@ function removeNthFromEnd(r: Recorder, values: number[], n: number) {
       states: {
         [dummy.id]: 'muted',
         ...(first ? { [first.id]: state } : {}),
-        ...(second ? { [second.id]: 'compare' as CellState } : {}),
+        ...(second ? { [second.id]: 'compare' } : {}),
       },
       pointers: [
         { name: 'first', node: first },
@@ -409,7 +409,7 @@ function removeNthFromEnd(r: Recorder, values: number[], n: number) {
   r.step({
     at: 'return dummy.next;',
     explain: 'The dummy keeps this correct even when the removed node was the head itself.',
-    visuals: [lv('result', dummy.next, { states: Object.fromEntries(walk(dummy.next).nodes.map((nd) => [nd.id, 'success' as CellState])) })],
+    visuals: [lv('result', dummy.next, { states: Object.fromEntries(walk(dummy.next).nodes.map((nd) => [nd.id, 'success'])) })],
     tone: 'success',
     result: `return ${walk(dummy.next).nodes.map((nd) => nd.val).join(' → ')}`,
   });
@@ -437,7 +437,7 @@ function reorderList(r: Recorder, values: number[]) {
       vars: { slow: slow!.val, fast: fast ? fast.val : 'null' },
       visuals: [
         lv('head', head, {
-          states: { [slow!.id]: 'active', ...(fast ? { [fast.id]: 'compare' as CellState } : {}) },
+          states: { [slow!.id]: 'active', ...(fast ? { [fast.id]: 'compare' } : {}) },
           pointers: [{ name: 'slow', node: slow }, { name: 'fast', node: fast, tone: 2 }],
         }),
       ],
@@ -494,7 +494,7 @@ function reorderList(r: Recorder, values: number[]) {
       vars: { list: walk(head).nodes.map((n) => n.val).join(' → ') },
       visuals: [
         lv('list so far', head, {
-          states: Object.fromEntries(walk(head).nodes.map((n) => [n.id, 'window' as CellState])),
+          states: Object.fromEntries(walk(head).nodes.map((n) => [n.id, 'window'])),
           pointers: [
             { name: 'firstHalf', node: firstHalf },
             { name: 'secondHalf', node: second, tone: 2 },
@@ -507,7 +507,7 @@ function reorderList(r: Recorder, values: number[]) {
   r.step({
     at: 'public void reorderList(ListNode head) {',
     explain: 'The list now alternates first, last, second, second-to-last, …',
-    visuals: [lv('result', head, { states: Object.fromEntries(walk(head).nodes.map((n) => [n.id, 'success' as CellState])) })],
+    visuals: [lv('result', head, { states: Object.fromEntries(walk(head).nodes.map((n) => [n.id, 'success'])) })],
     tone: 'success',
     result: walk(head).nodes.map((n) => n.val).join(' → '),
   });
@@ -579,7 +579,7 @@ function copyRandomList(r: Recorder, values: number[], randomIdx: (number | null
     explain: 'The copy shares no nodes with the original — mutating one cannot affect the other.',
     visuals: [
       lv('deep copy', copyList(), {
-        states: Object.fromEntries(walk(copyList()).nodes.map((n) => [n.id, 'success' as CellState])),
+        states: Object.fromEntries(walk(copyList()).nodes.map((n) => [n.id, 'success'])),
         extraEdges: randomEdges(walk(copyList()).nodes),
       }),
     ],
@@ -652,7 +652,7 @@ function mergeKLists(r: Recorder, lists: number[][]) {
   r.step({
     at: 'return dummy.next;',
     explain: 'One sorted list built out of the original nodes.',
-    visuals: [lv('merged', dummy.next, { states: Object.fromEntries(walk(dummy.next).nodes.map((n) => [n.id, 'success' as CellState])) })],
+    visuals: [lv('merged', dummy.next, { states: Object.fromEntries(walk(dummy.next).nodes.map((n) => [n.id, 'success'])) })],
     tone: 'success',
     result: `return ${walk(dummy.next).nodes.map((n) => n.val).join(' → ')}`,
   });
