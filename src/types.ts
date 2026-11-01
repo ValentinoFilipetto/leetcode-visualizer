@@ -240,3 +240,6 @@ export interface Solution {
   sourcePath: string;
   code: string;
 }
+
+/** A solution without its source, which is loaded on demand (see `virtual:solutions`). */
+export type SolutionMeta = Omit<Solution, 'code'>;

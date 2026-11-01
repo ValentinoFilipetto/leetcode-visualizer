@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import data from './data/solutions.generated.json';
-import type { Solution } from './types';
+import { codeLoaders, solutions as allSolutions } from 'virtual:solutions';
+import type { Solution, SolutionMeta } from './types';
 import { ResizeHandle } from './components/ResizeHandle';
 import { Sidebar } from './components/Sidebar';
 import { SolutionView } from './components/SolutionView';
@@ -9,7 +9,26 @@ import { tracers } from './tracers';
 
 const JAVA_REPO = 'https://github.com/ValentinoFilipetto/java-leetcode-solutions';
 
-const solutions = (data.solutions as Solution[]).slice().sort((a, b) => a.title.localeCompare(b.title));
+const solutions = allSolutions.slice().sort((a, b) => a.title.localeCompare(b.title));
+
+/**
+ * The selected solution with its source, which lives in a per-solution chunk. Until the chunk for a
+ * new selection arrives this keeps returning the previous one, so SolutionView stays mounted
+ * (and keeps its player settings) instead of flashing empty; it is null only on first load.
+ */
+function useLoadedSolution(meta: SolutionMeta): Solution | null {
+  const [loaded, setLoaded] = useState<Solution | null>(null);
+  useEffect(() => {
+    let current = true;
+    codeLoaders[meta.id]().then((mod) => {
+      if (current) setLoaded({ ...meta, code: mod.default });
+    });
+    return () => {
+      current = false;
+    };
+  }, [meta]);
+  return loaded;
+}
 
 type ThemePref = 'system' | 'light' | 'dark';
 const THEME_OPTIONS: [ThemePref, string][] = [
@@ -38,7 +57,7 @@ const MAX_SIDEBAR = 480;
 const MIN_MAIN = 720;
 
 /** Rendered twice: in the topbar on desktop, inside the meta strip on mobile. */
-function SolutionLinks({ solution }: { solution: Solution }) {
+function SolutionLinks({ solution }: { solution: SolutionMeta }) {
   return (
     <a
       className="link-btn"
@@ -113,6 +132,7 @@ export default function App() {
     () => solutions.find((s) => s.id === selectedId) ?? solutions[0],
     [selectedId],
   );
+  const loaded = useLoadedSolution(solution);
 
   return (
     <div
@@ -146,7 +166,8 @@ export default function App() {
         onReset={() => setSidebarWidth(null)}
       />
 
-      <main className="main">
+      {/* data-solution-id names what SolutionView is showing, which lags selectedId while code loads. */}
+      <main className="main" data-solution-id={loaded?.id}>
         <header className="topbar">
           <button className="icon-btn menu-btn" onClick={() => setMenuOpen((o) => !o)} title="Problems">
             <IconMenu />
@@ -203,7 +224,7 @@ export default function App() {
           </div>
         </header>
 
-        <SolutionView solution={solution} tracer={tracers[solution.id]} showCode={showCode} />
+        {loaded && <SolutionView solution={loaded} tracer={tracers[loaded.id]} showCode={showCode} />}
       </main>
     </div>
   );

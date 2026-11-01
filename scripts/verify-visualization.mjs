@@ -88,6 +88,9 @@ async function main() {
       failures.length = 0;
 
       await page.goto(`http://${HOST}:${PORT}/#/${encodeURIComponent(id)}`, { waitUntil: 'networkidle0' });
+      // After the first solution only the hash changes, so goto returns at once; each solution's
+      // source is a lazy chunk, and until it lands the page still shows the previous solution.
+      await page.waitForSelector(`main[data-solution-id="${id}"]`);
 
       const missingTracer = await page.$('.missing-tracer');
       if (missingTracer) {

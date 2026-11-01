@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { Solution } from '../types';
+import type { SolutionMeta } from '../types';
 import { IconSearch } from './icons';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
@@ -10,7 +10,7 @@ export function Sidebar({
   onSelect,
   className = '',
 }: {
-  solutions: Solution[];
+  solutions: SolutionMeta[];
   selectedId: string;
   onSelect: (id: string) => void;
   className?: string;
@@ -30,7 +30,7 @@ export function Sidebar({
         s.className.toLowerCase().includes(q)
       );
     });
-    const byCategory = new Map<string, Solution[]>();
+    const byCategory = new Map<string, SolutionMeta[]>();
     for (const s of filtered) {
       const list = byCategory.get(s.categoryLabel) ?? [];
       list.push(s);
