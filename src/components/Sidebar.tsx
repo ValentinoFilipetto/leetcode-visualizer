@@ -46,7 +46,10 @@ export function Sidebar({
   return (
     <aside className={`sidebar ${className}`}>
       <div className="brand">
-        <div className="brand-mark">◎</div>
+        {/* Same emoji as the favicon in index.html. */}
+        <div className="brand-mark" aria-hidden="true">
+          🧩
+        </div>
         <div>
           <div className="brand-title">Algorithm Visualizer</div>
           <div className="brand-sub">LeetCode solutions in Java</div>
