@@ -199,14 +199,16 @@ button {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
+/* Spans the input's box only (the wrap's bottom padding excluded), so the icon centres on the text. */
 .search-icon {
   position: absolute;
   left: 24px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 10px;
   color: var(--text-faint);
   pointer-events: none;
   display: flex;
+  align-items: center;
 }
 
 .filters {
@@ -1674,14 +1676,6 @@ kbd {
   color: var(--text-dim);
 }
 
-.shortcuts {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  font-size: 11px;
-  color: var(--text-faint);
-}
-
 @media (max-width: 1100px) {
   .app {
     grid-template-columns: 1fr;
@@ -1949,9 +1943,8 @@ kbd {
     order: -1;
     flex-basis: 100%;
   }
-  /* The scrubber already jumps to either end, and ← → have no meaning here. */
-  .edge-btn,
-  .shortcuts {
+  /* The scrubber already jumps to either end. */
+  .edge-btn {
     display: none;
   }
   .step-btn {

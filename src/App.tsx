@@ -4,12 +4,30 @@ import type { Solution } from './types';
 import { ResizeHandle } from './components/ResizeHandle';
 import { Sidebar } from './components/Sidebar';
 import { SolutionView } from './components/SolutionView';
-import { IconCode, IconExternal, IconMenu, IconMoon, IconSidebar, IconSun } from './components/icons';
+import { IconCode, IconExternal, IconMenu, IconMonitor, IconMoon, IconSidebar, IconSun } from './components/icons';
 import { tracers } from './tracers';
 
 const JAVA_REPO = 'https://github.com/ValentinoFilipetto/java-leetcode-solutions';
 
 const solutions = (data.solutions as Solution[]).slice().sort((a, b) => a.title.localeCompare(b.title));
+
+type ThemePref = 'system' | 'light' | 'dark';
+const NEXT_THEME: Record<ThemePref, ThemePref> = { system: 'light', light: 'dark', dark: 'system' };
+const THEME_LABEL: Record<ThemePref, string> = { system: 'System', light: 'Light', dark: 'Dark' };
+
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
+/** Tracks the OS colour scheme live, so "System" follows it without a reload. */
+function useSystemDark() {
+  const [dark, setDark] = useState(() => window.matchMedia(DARK_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(DARK_QUERY);
+    const onChange = () => setDark(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return dark;
+}
 
 const MIN_SIDEBAR = 220;
 const MAX_SIDEBAR = 480;
@@ -39,9 +57,12 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string>(
     () => idFromHash() ?? solutions.find((s) => tracers[s.id])?.id ?? solutions[0].id,
   );
-  const [theme, setTheme] = useState<'dark' | 'light'>(
-    () => (localStorage.getItem('theme') as 'dark' | 'light') ?? 'dark',
-  );
+  const [themePref, setThemePref] = useState<ThemePref>(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark' || saved === 'light' || saved === 'system' ? saved : 'system';
+  });
+  const systemDark = useSystemDark();
+  const theme = themePref === 'system' ? (systemDark ? 'dark' : 'light') : themePref;
   const [menuOpen, setMenuOpen] = useState(false);
   // Mobile only: the code panel is collapsed by default so the stage gets the full width.
   const [showCode, setShowCode] = useState(false);
@@ -49,11 +70,14 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem('theme', theme);
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute('content', theme === 'dark' ? '#10151f' : '#ffffff');
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem('theme', themePref);
+  }, [themePref]);
 
   const [sidebarWidth, setSidebarWidth] = useState<number | null>(() => {
     const saved = Number(localStorage.getItem('sidebarWidth'));
@@ -162,10 +186,11 @@ export default function App() {
             </button>
             <button
               className="icon-btn"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title="Toggle theme"
+              onClick={() => setThemePref(NEXT_THEME[themePref])}
+              title={`Theme: ${THEME_LABEL[themePref]} (click for ${THEME_LABEL[NEXT_THEME[themePref]]})`}
+              aria-label={`Theme: ${THEME_LABEL[themePref]}`}
             >
-              {theme === 'dark' ? <IconSun /> : <IconMoon />}
+              {themePref === 'system' ? <IconMonitor /> : themePref === 'dark' ? <IconMoon /> : <IconSun />}
             </button>
           </div>
         </header>

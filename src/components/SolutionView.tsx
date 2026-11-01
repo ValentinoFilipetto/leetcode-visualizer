@@ -202,13 +202,13 @@ export function SolutionView({
     <>
       <div className="input-line">
         <span className="label">Input</span>
-        <span>{input}</span>
-        {tracer.examples.length > 1 && (
+        {tracer.examples.length > 1 ? (
           <select
             className="example-select"
             value={exampleIndex}
             onChange={(e) => setExampleIndex(Number(e.target.value))}
             aria-label="Example input"
+            title={input}
           >
             {tracer.examples.map((ex, i) => (
               <option key={ex.label} value={i}>
@@ -216,6 +216,8 @@ export function SolutionView({
               </option>
             ))}
           </select>
+        ) : (
+          <span>{input}</span>
         )}
       </div>
 

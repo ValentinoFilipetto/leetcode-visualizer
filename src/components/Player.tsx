@@ -84,11 +84,6 @@ export function Player({ index, total, playing, speed, onSeek, onTogglePlay, onS
           <span>
             step {index + 1} / {total}
           </span>
-          <span className="shortcuts">
-            <kbd>←</kbd>
-            <kbd>→</kbd>
-            <kbd>space</kbd>
-          </span>
         </div>
       </div>
 
