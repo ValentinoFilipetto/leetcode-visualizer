@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, GraphViz, Tracer, Visual } from '../types';
-import { arr, cellStates, frames, graphViz, grid, queue } from './helpers';
+import { arr, frames, graphViz, grid, queue } from './helpers';
 
 /* ── Shared grid helpers ──────────────────────────────────────────────────── */
 
@@ -659,7 +659,7 @@ function courseSchedule(r: Recorder, numCourses: number, prerequisites: number[]
       states: indegree.map((v: number, i: number) => (i === active ? 'active' : v === 0 && !done.has(i) ? 'success' : undefined)),
     }),
     queue('queue  (courses with no prerequisites left)', q),
-    ...(withOrder ? [arr(res, { title: 'res', states: cellStates(res.length, () => 'success') })] : []),
+    ...(withOrder ? [arr(res, { title: 'res', states: res.map(() => 'success') })] : []),
   ];
 
   r.step({

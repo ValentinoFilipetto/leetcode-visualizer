@@ -27,11 +27,6 @@ import type {
  * builder takes a snapshot instead.
  */
 
-/** One state per cell, for `arr`/`bars` `states`: `stateAt(i)` for every index below `length`. */
-export function cellStates(length: number, stateAt: (i: number) => CellState | undefined): (CellState | undefined)[] {
-  return Array.from({ length }, (_, i) => stateAt(i));
-}
-
 export function arr(values: (string | number)[], o: Partial<ArrayViz> = {}): ArrayViz {
   const viz: ArrayViz = { kind: 'array', values, ...o };
   return {

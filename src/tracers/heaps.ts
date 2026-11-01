@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, cellStates, chars, chips, heap, intervalsViz, list, mapOf } from './helpers';
+import { arr, chars, chips, heap, intervalsViz, list, mapOf } from './helpers';
 
 /**
  * A textbook binary heap, so the array layout shown in the visuals matches what
@@ -95,11 +95,11 @@ function findKthLargest(r: Recorder, nums: number[], k: number) {
   const view = (i: number, state: CellState, heapState?: CellState): Visual[] => [
     arr(nums, {
       title: 'nums',
-      states: cellStates(nums.length, (x) => (x === i ? state : x < i ? 'visited' : undefined)),
+      states: nums.map((_, x) => (x === i ? state : x < i ? 'visited' : undefined)),
       pointers: i >= 0 && i < nums.length ? [{ name: 'num', index: i }] : [],
     }),
     heap(`minHeap  (holds the ${k} largest values seen so far)`, h.items, 'min', {
-      states: cellStates(h.items.length, (x) => (x === 0 ? heapState : undefined)),
+      states: h.items.map((_, x) => (x === 0 ? heapState : undefined)),
     }),
   ];
 
@@ -146,7 +146,7 @@ function findKthLargest(r: Recorder, nums: number[], k: number) {
 function kthLargestStream(r: Recorder, k: number, nums: number[], adds: number[]) {
   const h = minHeap();
   const view = (state?: CellState): Visual[] => [
-    heap(`minHeap  (size ≤ k = ${k})`, h.items, 'min', { states: cellStates(h.items.length, (i) => (i === 0 ? state : undefined)) }),
+    heap(`minHeap  (size ≤ k = ${k})`, h.items, 'min', { states: h.items.map((_, i) => (i === 0 ? state : undefined)) }),
   ];
 
   r.step({
@@ -188,7 +188,7 @@ function kthLargestStream(r: Recorder, k: number, nums: number[], adds: number[]
 function lastStoneWeight(r: Recorder, stones: number[]) {
   const h = maxHeap();
   const view = (states: Record<number, CellState> = {}): Visual[] => [
-    heap('maxHeap', h.items, 'max', { states: cellStates(h.items.length, (i) => states[i]) }),
+    heap('maxHeap', h.items, 'max', { states: h.items.map((_, i) => states[i]) }),
   ];
 
   r.step({
@@ -248,10 +248,10 @@ function kClosest(r: Recorder, points: number[][], k: number) {
       title: 'points',
       labels: points.map((p) => `d² ${dist(p)}`),
       indexed: false,
-      states: cellStates(points.length, (x) => (x === i ? state : x < i ? 'visited' : undefined)),
+      states: points.map((_, x) => (x === i ? state : x < i ? 'visited' : undefined)),
     }),
     heap(`maxHeap  (the ${k} closest points, farthest on top)`, h.items.map(fmtPoint), 'max', {
-      states: cellStates(h.items.length, (x) => (x === 0 ? rootState : undefined)),
+      states: h.items.map((_, x) => (x === 0 ? rootState : undefined)),
     }),
   ];
 
@@ -372,7 +372,7 @@ function designTwitter(r: Recorder, ops: TwitterOp[]) {
     const h = new BinaryHeap<[number, number, number, number]>((a, b) => b[1] - a[1]);
     const heapViz = (state?: CellState): Visual =>
       heap('maxHeap  (the newest unread tweet of each followee)', h.items.map(([id, t, u]) => `#${id}@t${t} (u${u})`), 'max', {
-        states: cellStates(h.items.length, (i) => (i === 0 ? state : undefined)),
+        states: h.items.map((_, i) => (i === 0 ? state : undefined)),
       });
 
     r.step({
@@ -448,7 +448,7 @@ function taskScheduler(r: Recorder, tasksInput: string, n: number) {
   const heapLabel = (cnt: number) => `${cnt}×`;
   const view = (state: CellState = 'active'): Visual[] => [
     heap('maxHeap  (frequency of each task still available)', h.items.map(heapLabel), 'max', {
-      states: cellStates(h.items.length, (i) => (i === 0 ? state : undefined)),
+      states: h.items.map((_, i) => (i === 0 ? state : undefined)),
     }),
     chips(
       'cooldown queue  (count, available at)',
@@ -544,11 +544,11 @@ function reorganizeString(r: Recorder, s: string) {
   const view = (o: { i?: number; rootState?: CellState } = {}): Visual[] => [
     arr(letters, {
       title: 's',
-      states: cellStates(letters.length, (x) => (o.i === undefined ? undefined : x === o.i ? 'active' : x < o.i ? 'visited' : undefined)),
+      states: letters.map((_, x) => (o.i === undefined ? undefined : x === o.i ? 'active' : x < o.i ? 'visited' : undefined)),
     }),
     mapOf('frequencies', [...frequencies]),
     heap('maxHeap  (most frequent letter on top)', h.items.map(fmt), 'max', {
-      states: cellStates(h.items.length, (x) => (x === 0 ? o.rootState : undefined)),
+      states: h.items.map((_, x) => (x === 0 ? o.rootState : undefined)),
     }),
     chips('previous  (sits out one turn)', previous ? [fmt(previous)] : [], { emptyHint: 'null' }),
     arr(chars(res), { title: 'res' }),
@@ -649,13 +649,13 @@ function singleThreadedCPU(r: Recorder, tasks: number[][]) {
       title: 'tasks',
       labels: tasks.map(([e, p]) => `e${e} p${p}`),
       indexed: false,
-      states: cellStates(tasks.length, (i) => (i === o.running ? 'active' : res.includes(i) ? 'done' : undefined)),
+      states: tasks.map((_, i) => (i === o.running ? 'active' : res.includes(i) ? 'done' : undefined)),
     }),
     heap('queue  (not enqueued yet — earliest enqueueTime on top)', queue.items.map(fmt), 'min', {
-      states: cellStates(queue.items.length, (x) => (x === 0 ? o.queueState : undefined)),
+      states: queue.items.map((_, x) => (x === 0 ? o.queueState : undefined)),
     }),
     heap('minHeap  (available now — shortest, then lowest index, on top)', minHeap_.items.map(fmt), 'min', {
-      states: cellStates(minHeap_.items.length, (x) => (x === 0 ? o.heapState : undefined)),
+      states: minHeap_.items.map((_, x) => (x === 0 ? o.heapState : undefined)),
     }),
     chips('res', res.map((i) => `T${i}`), { emptyHint: '[]' }),
   ];
@@ -736,12 +736,12 @@ function longestHappyString(r: Recorder, a: number, b: number, c: number) {
   const fmt = ([l, f]: [string, number]) => `${l}×${f}`;
   const view = (o: { rootState?: CellState; held?: [string, number]; last?: CellState } = {}): Visual[] => [
     heap('maxHeap  (letters left, most plentiful on top)', h.items.map(fmt), 'max', {
-      states: cellStates(h.items.length, (x) => (x === 0 ? o.rootState : undefined)),
+      states: h.items.map((_, x) => (x === 0 ? o.rootState : undefined)),
     }),
     chips('polled', o.held ? [fmt(o.held)] : [], { emptyHint: '—' }),
     arr(chars(res), {
       title: 'res',
-      states: cellStates(chars(res).length, (x) => (x === res.length - 1 ? o.last : undefined)),
+      states: chars(res).map((_, x) => (x === res.length - 1 ? o.last : undefined)),
     }),
   ];
 
@@ -846,10 +846,10 @@ function carPooling(r: Recorder, trips: number[][], capacity: number) {
       { min: 0, max: maxTo },
     ),
     heap('queue  (waiting — nearest pickup on top)', queue.items.map(fmt), 'min', {
-      states: cellStates(queue.items.length, (x) => (x === 0 ? o.queueState : undefined)),
+      states: queue.items.map((_, x) => (x === 0 ? o.queueState : undefined)),
     }),
     heap('currentRide  (in the car — earliest drop-off on top)', currentRide.items.map(fmt), 'min', {
-      states: cellStates(currentRide.items.length, (x) => (x === 0 ? o.rideState : undefined)),
+      states: currentRide.items.map((_, x) => (x === 0 ? o.rideState : undefined)),
     }),
   ];
   const vars = () => ({ currentPosition, currentLoad, capacity });
@@ -941,13 +941,13 @@ function topKFrequentWords(r: Recorder, words: string[], k: number) {
   const view = (o: { i?: number; rootState?: CellState; key?: string } = {}): Visual[] => [
     arr(words, {
       title: 'words',
-      states: cellStates(words.length, (x) => (o.i === undefined ? undefined : x === o.i ? 'active' : x < o.i ? 'visited' : undefined)),
+      states: words.map((_, x) => (o.i === undefined ? undefined : x === o.i ? 'active' : x < o.i ? 'visited' : undefined)),
     }),
     mapOf('frequenciesMap', [], {
       entries: [...frequenciesMap].map(([key, value]) => ({ key, value, state: key === o.key ? 'active' : undefined })),
     }),
     heap(`minHeap  (the best ${k} so far, weakest on top)`, h.items.map(fmt), 'min', {
-      states: cellStates(h.items.length, (x) => (x === 0 ? o.rootState : undefined)),
+      states: h.items.map((_, x) => (x === 0 ? o.rootState : undefined)),
     }),
   ];
 
@@ -1046,13 +1046,13 @@ function searchSuggestions(r: Recorder, products: string[], searchWord: string) 
     const view = (j: number, state: CellState | undefined, rootState?: CellState): Visual[] => [
       arr(products, {
         title: `products  (prefix "${prefix}")`,
-        states: cellStates(products.length, (x) =>
+        states: products.map((_, x) =>
           x === j ? state : x < j ? (matched.has(x) ? 'success' : 'muted') : undefined,
         ),
         pointers: j >= 0 && j < products.length ? [{ name: 'product', index: j }] : [],
       }),
       heap('maxHeap  (≤ 3 matches, largest on top)', h.items, 'max', {
-        states: cellStates(h.items.length, (x) => (x === 0 ? rootState : undefined)),
+        states: h.items.map((_, x) => (x === 0 ? rootState : undefined)),
       }),
       resViz(i),
     ];

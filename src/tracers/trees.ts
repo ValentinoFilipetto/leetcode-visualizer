@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, TreeNodeViz, TreeViz, Visual } from '../types';
-import { arr, cellStates, chips, frames, queue } from './helpers';
+import { arr, chips, frames, queue } from './helpers';
 
 /* ── A mutable binary tree the tracers can walk and rewrite ───────────────── */
 
@@ -654,7 +654,7 @@ function kthSmallest(r: Recorder, values: (number | null)[], k: number) {
       vars: { node: n.val, list: `[${out.join(', ')}]` },
       visuals: [
         tv('BST', root, { states: { ...states, [n.id]: out.length === k ? 'success' : 'done' } }),
-        arr(out, { title: 'list', states: cellStates(out.length, (i) => (i === k - 1 ? 'success' : undefined)) }),
+        arr(out, { title: 'list', states: out.map((_, i) => (i === k - 1 ? 'success' : undefined)) }),
         stack.viz(),
       ],
       tone: out.length === k ? 'success' : 'neutral',
@@ -676,7 +676,7 @@ function kthSmallest(r: Recorder, values: (number | null)[], k: number) {
     vars: { k, answer: out[k - 1] },
     visuals: [
       tv('BST', root),
-      arr(out, { title: 'list', states: cellStates(out.length, (i) => (i === k - 1 ? 'success' : undefined)) }),
+      arr(out, { title: 'list', states: out.map((_, i) => (i === k - 1 ? 'success' : undefined)) }),
     ],
     tone: 'success',
     result: `return ${out[k - 1]}`,
