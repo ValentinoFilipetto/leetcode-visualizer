@@ -53,26 +53,6 @@ export const IconSearch = () => (
   </svg>
 );
 
-export const IconSun = () => (
-  <svg {...base}>
-    <circle cx="12" cy="12" r="4" />
-    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-  </svg>
-);
-
-export const IconMoon = () => (
-  <svg {...base}>
-    <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
-  </svg>
-);
-
-export const IconMonitor = () => (
-  <svg {...base}>
-    <rect x="3" y="4" width="18" height="12" rx="2" />
-    <path d="M8 20h8M12 16v4" />
-  </svg>
-);
-
 export const IconExternal = () => (
   <svg {...base} width={13} height={13}>
     <path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" />

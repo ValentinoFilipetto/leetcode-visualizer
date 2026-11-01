@@ -4,7 +4,7 @@ import type { Solution } from './types';
 import { ResizeHandle } from './components/ResizeHandle';
 import { Sidebar } from './components/Sidebar';
 import { SolutionView } from './components/SolutionView';
-import { IconCode, IconExternal, IconMenu, IconMonitor, IconMoon, IconSidebar, IconSun } from './components/icons';
+import { IconCode, IconExternal, IconMenu, IconSidebar } from './components/icons';
 import { tracers } from './tracers';
 
 const JAVA_REPO = 'https://github.com/ValentinoFilipetto/java-leetcode-solutions';
@@ -12,8 +12,11 @@ const JAVA_REPO = 'https://github.com/ValentinoFilipetto/java-leetcode-solutions
 const solutions = (data.solutions as Solution[]).slice().sort((a, b) => a.title.localeCompare(b.title));
 
 type ThemePref = 'system' | 'light' | 'dark';
-const NEXT_THEME: Record<ThemePref, ThemePref> = { system: 'light', light: 'dark', dark: 'system' };
-const THEME_LABEL: Record<ThemePref, string> = { system: 'System', light: 'Light', dark: 'Dark' };
+const THEME_OPTIONS: [ThemePref, string][] = [
+  ['dark', 'Dark'],
+  ['light', 'Light'],
+  ['system', 'System'],
+];
 
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
@@ -184,14 +187,19 @@ export default function App() {
             >
               <IconCode />
             </button>
-            <button
-              className="icon-btn"
-              onClick={() => setThemePref(NEXT_THEME[themePref])}
-              title={`Theme: ${THEME_LABEL[themePref]} (click for ${THEME_LABEL[NEXT_THEME[themePref]]})`}
-              aria-label={`Theme: ${THEME_LABEL[themePref]}`}
+            <select
+              className="theme-select"
+              value={themePref}
+              onChange={(e) => setThemePref(e.target.value as ThemePref)}
+              aria-label="Theme"
+              title="Theme"
             >
-              {themePref === 'system' ? <IconMonitor /> : themePref === 'dark' ? <IconMoon /> : <IconSun />}
-            </button>
+              {THEME_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </div>
         </header>
 

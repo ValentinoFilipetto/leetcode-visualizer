@@ -1596,7 +1596,8 @@ body.col-resizing {
 }
 
 .speed-select,
-.example-select {
+.example-select,
+.theme-select {
   padding: 7px 10px;
   border-radius: 10px;
   background: var(--panel-2);
@@ -1609,9 +1610,14 @@ body.col-resizing {
   max-width: 260px;
 }
 .speed-select:hover,
-.example-select:hover {
+.example-select:hover,
+.theme-select:hover {
   color: var(--text);
   border-color: var(--line-strong);
+}
+/* Same height as the header's icon buttons it sits beside. */
+.theme-select {
+  height: 34px;
 }
 
 .input-line {
