@@ -38,7 +38,7 @@ export function SolutionView({
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(800);
   const [maximized, setMaximized] = useState(false);
-  const timer = useRef<number>();
+  const timer = useRef<number | undefined>(undefined);
 
   const { steps, input } = useMemo(
     () => buildSteps(solution.code, tracer, exampleIndex),
