@@ -1,68 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, bars, chars, list, setOf } from './helpers';
-
-/* ── Best Time to Buy and Sell Stock ──────────────────────────────────────── */
-
-function maxProfit(r: Recorder, prices: number[]) {
-  let left = 0;
-  let maxSoFar = 0;
-
-  const view = (right: number, state: CellState, profit?: number): Visual[] => [
-    bars(prices, {
-      title: 'prices',
-      states: prices.map((_, i) => (i === right ? state : i === left ? ('window' as CellState) : i < left ? ('muted' as CellState) : undefined)),
-      pointers: [
-        { name: 'buy', index: left, tone: 3 },
-        { name: 'sell', index: right, tone: 2 },
-      ],
-      overlays:
-        profit !== undefined && profit > 0
-          ? [{ index: left, span: right - left + 1, from: prices[left], to: prices[right], tone: 'area', label: `+${profit}` }]
-          : [],
-      note: `best profit so far: ${maxSoFar}`,
-    }),
-  ];
-
-  r.step({
-    at: 'int left = 0, maxSoFar = 0;',
-    explain: 'left is the cheapest day seen so far — the day we would have bought. right walks forward looking for the best day to sell.',
-    vars: { left, maxSoFar },
-    visuals: view(0, 'idle'),
-  });
-
-  for (let right = 0; right < prices.length; right++) {
-    if (prices[right] <= prices[left]) {
-      r.step({
-        at: 'if (prices[right] <= prices[left]) left = right;',
-        explain: `Day ${right} costs ${prices[right]}, which is no more than the current buy price ${prices[left]} — buying here can only be better, so move left.`,
-        vars: { right, 'prices[right]': prices[right], 'prices[left]': prices[left], maxSoFar },
-        visuals: view(right, 'compare'),
-      });
-      left = right;
-    } else {
-      const profit = prices[right] - prices[left];
-      const improved = profit > maxSoFar;
-      maxSoFar = Math.max(maxSoFar, profit);
-      r.step({
-        at: ['int profit = prices[right] - prices[left];', 'maxSoFar = Math.max(maxSoFar, profit);'],
-        explain: `Selling on day ${right} at ${prices[right]} after buying on day ${left} at ${prices[left]} earns ${profit}.${improved ? ' Best so far.' : ''}`,
-        vars: { left, right, profit, maxSoFar },
-        visuals: view(right, 'success', profit),
-        tone: improved ? 'success' : 'neutral',
-      });
-    }
-  }
-
-  r.step({
-    at: 'return maxSoFar;',
-    explain: `One pass, no extra memory: the best achievable profit is ${maxSoFar}.`,
-    vars: { maxSoFar },
-    visuals: [bars(prices, { title: 'prices' })],
-    tone: 'success',
-    result: `return ${maxSoFar}`,
-  });
-}
+import { arr, chars, list, setOf } from './helpers';
 
 /* ── Happy Number ─────────────────────────────────────────────────────────── */
 
@@ -513,12 +451,6 @@ function productExceptSelf(r: Recorder, nums: number[]) {
 /* ── Registry ─────────────────────────────────────────────────────────────── */
 
 export const miscTracers: Record<string, Tracer> = {
-  'easy/greedy/BestTimeToBuyAndSellStocks': {
-    examples: [
-      { label: 'prices = [10,1,5,6,7,1]', input: 'prices = [10, 1, 5, 6, 7, 1]', run: (r) => maxProfit(r, [10, 1, 5, 6, 7, 1]) },
-      { label: 'falling prices', input: 'prices = [7, 6, 4, 3, 1]', run: (r) => maxProfit(r, [7, 6, 4, 3, 1]) },
-    ],
-  },
   'easy/math/HappyNumber': {
     examples: [
       { label: 'n = 19 (happy)', input: 'n = 19', run: (r) => isHappy(r, 19) },

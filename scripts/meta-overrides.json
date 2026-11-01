@@ -14,10 +14,15 @@
     "slug": "flood-fill",
     "number": 733
   },
-  "easy/greedy/BestTimeToBuyAndSellStocks": {
+  "easy/slidingwindow/BestTimeToBuyAndSellStocks": {
     "title": "Best Time to Buy and Sell Stock",
     "slug": "best-time-to-buy-and-sell-stock",
     "number": 121
+  },
+  "easy/slidingwindow/ContainsDuplicateII": {
+    "title": "Contains Duplicate II",
+    "slug": "contains-duplicate-ii",
+    "number": 219
   },
   "easy/hashing/ContainsDuplicate": {
     "title": "Contains Duplicate",
@@ -183,6 +188,11 @@
     "title": "Minimum Window Substring",
     "slug": "minimum-window-substring",
     "number": 76
+  },
+  "hard/slidingwindow/SlidingWindowMaximum": {
+    "title": "Sliding Window Maximum",
+    "slug": "sliding-window-maximum",
+    "number": 239
   },
   "hard/stack/LargestRectangleInHistogram": {
     "title": "Largest Rectangle in Histogram",
