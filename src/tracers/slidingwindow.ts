@@ -654,8 +654,8 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
   for (let i = 0; i < span; i++) {
     const day = startDay + i;
     const windowStart = i - dayRange + 1;
-    const filling = windowStart < 0 ? ` Window not full yet (needs ${dayRange} days), so skip the answer.` : '';
-    const skipLine = windowStart < 0 ? ['if (windowStart < 0) continue;'] : [];
+    const filling = i + 1 < dayRange ? ` Only ${i + 1} of ${dayRange} days seen, so the first window isn't full yet: skip the answer.` : '';
+    const skipLine = i + 1 < dayRange ? ['if (i + 1 >= dayRange) {'] : [];
 
     if (has(i)) {
       const p = prices[day];
@@ -681,7 +681,7 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
         visuals: view(i, { [i]: 'muted' }),
       });
     }
-    if (windowStart < 0) continue;
+    if (i + 1 < dayRange) continue;
 
     const expired: number[] = [];
     while (dq.length > 0 && dq[0] < windowStart) expired.push(dq.shift()!);
@@ -692,7 +692,7 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
       const best = dq[0];
       res.set(key, `day ${startDay + best}, price ${price[best]}`);
       r.step({
-        at: ['while (!dq.isEmpty() && dq.peekFirst() < windowStart) dq.removeFirst();', 'int best = dq.peekFirst();', 'res.put((startDay + windowStart) + "-" + (startDay + i),'],
+        at: ['if (i + 1 >= dayRange) {', 'while (!dq.isEmpty() && dq.peekFirst() < windowStart) dq.removeFirst();', 'int best = dq.peekFirst();', 'res.put((startDay + windowStart) + "-" + (startDay + i),'],
         explain: `${expiredText}The front of the deque is the cheapest day still inside ${key}: day ${startDay + best} at ${price[best]}.`,
         vars: { windowStart, i, best: startDay + best, price: price[best] },
         visuals: view(i, {}, best),
@@ -700,7 +700,7 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
       });
     } else {
       r.step({
-        at: ['while (!dq.isEmpty() && dq.peekFirst() < windowStart) dq.removeFirst();', 'if (!dq.isEmpty()) {'],
+        at: ['if (i + 1 >= dayRange) {', 'while (!dq.isEmpty() && dq.peekFirst() < windowStart) dq.removeFirst();', 'if (!dq.isEmpty()) {'],
         explain: `${expiredText}The deque is empty: there are no flights at all in ${key}, so the window is omitted.`,
         vars: { windowStart, i },
         visuals: view(i),
