@@ -1116,6 +1116,116 @@ function searchSuggestions(r: Recorder, products: string[], searchWord: string) 
   });
 }
 
+/* ── Find Median from Data Stream ─────────────────────────────────────────── */
+
+type MedianOp = ['add', number] | ['median'];
+
+function medianFinder(r: Recorder, ops: MedianOp[]) {
+  const lo = maxHeap(); // Java: maxHeap, the smaller half
+  const hi = minHeap(); // Java: minHeap, the larger half
+  const seen: number[] = [];
+  const javaDouble = (v: number) => (Number.isInteger(v) ? v.toFixed(1) : String(v));
+
+  const view = (loTop?: CellState, hiTop?: CellState): Visual[] => {
+    const sorted = [...seen].sort((a, b) => a - b);
+    return [
+      heap('maxHeap  (smaller half, largest on top)', lo.items, 'max', { states: lo.items.map((_, i) => (i === 0 ? loTop : undefined)) }),
+      heap('minHeap  (larger half, smallest on top)', hi.items, 'min', { states: hi.items.map((_, i) => (i === 0 ? hiTop : undefined)) }),
+      arr(sorted, {
+        title: 'stream, sorted (for reference only)',
+        states: sorted.map((_, i) => (i < lo.size ? 'window' : 'compare')),
+        note: `maxHeap holds the first ${lo.size}, minHeap the last ${hi.size}`,
+      }),
+    ];
+  };
+  const sizes = () => ({ 'maxHeap.size()': lo.size, 'minHeap.size()': hi.size });
+
+  r.step({
+    at: ['minHeap = new PriorityQueue<>();', 'maxHeap = new PriorityQueue<>((a, b) -> b - a);'],
+    explain: 'Split the stream into two halves: a max-heap for the smaller half and a min-heap for the larger one. The median then only ever depends on the two heap tops.',
+    vars: sizes(),
+    visuals: view(),
+  });
+
+  for (const op of ops) {
+    if (op[0] === 'add') {
+      const num = op[1];
+      seen.push(num);
+      lo.offer(num);
+      const tooBig = lo.size - hi.size > 1;
+      const outOfOrder = hi.size > 0 && lo.peek() > hi.peek();
+      r.step({
+        at: 'maxHeap.add(num);',
+        explain:
+          `addNum(${num}): every number goes into maxHeap first. ` +
+          (tooBig
+            ? `maxHeap is now ${lo.size - hi.size} bigger than minHeap, so it has to give one up.`
+            : outOfOrder
+              ? `maxHeap's top ${lo.peek()} is bigger than minHeap's top ${hi.peek()}, so the halves overlap and must be fixed.`
+              : hi.size === 0
+                ? 'minHeap is empty and the sizes are within one, so nothing needs to move.'
+                : `${lo.peek()} ≤ ${hi.peek()} and the sizes are within one, so both halves are still valid.`),
+        vars: { num, ...sizes(), 'maxHeap.peek()': lo.peek(), 'minHeap.peek()': hi.size ? hi.peek() : 'null' },
+        visuals: view('active', hi.size ? 'compare' : undefined),
+      });
+
+      if (tooBig || outOfOrder) {
+        const moved = lo.poll();
+        hi.offer(moved);
+        r.step({
+          at: ['if (maxHeap.size() - minHeap.size() > 1 ||', '!minHeap.isEmpty() && maxHeap.peek() > minHeap.peek()) {', 'minHeap.add(maxHeap.poll());'],
+          explain: tooBig
+            ? `Move maxHeap's largest value ${moved} over to minHeap: it is the one that belongs at the bottom of the larger half.`
+            : `${moved} is too big for the smaller half. Moving maxHeap's top to minHeap puts every value back on the correct side.`,
+          vars: { moved, ...sizes() },
+          visuals: view(undefined, 'active'),
+          tone: 'warn',
+        });
+      }
+
+      if (hi.size - lo.size > 1) {
+        const moved = hi.poll();
+        lo.offer(moved);
+        r.step({
+          at: ['if (minHeap.size() - maxHeap.size() > 1) {', 'maxHeap.add(minHeap.poll());'],
+          explain: `That move left minHeap ${hi.size + 1 - (lo.size - 1)} bigger than maxHeap. Hand its smallest value ${moved} back so the sizes differ by at most one.`,
+          vars: { moved, ...sizes() },
+          visuals: view('active'),
+          tone: 'warn',
+        });
+      }
+    } else if (lo.size === hi.size) {
+      const median = (hi.peek() + lo.peek()) / 2;
+      r.step({
+        at: ['if (minHeap.size() == maxHeap.size()) {', 'return (double) (minHeap.peek() + maxHeap.peek()) / 2;'],
+        explain: `Even count: the two middle values are exactly the two tops, ${lo.peek()} and ${hi.peek()}. Average them.`,
+        vars: { ...sizes(), 'maxHeap.peek()': lo.peek(), 'minHeap.peek()': hi.peek() },
+        visuals: view('success', 'success'),
+        tone: 'success',
+        result: `findMedian() = ${javaDouble(median)}`,
+      });
+    } else if (lo.size > hi.size) {
+      r.step({
+        at: ['if (minHeap.size() == maxHeap.size()) {', '} else if (maxHeap.size() > minHeap.size()) return (double) maxHeap.peek();'],
+        explain: `Odd count and maxHeap has the extra element, so its top ${lo.peek()} is the middle value.`,
+        vars: { ...sizes(), 'maxHeap.peek()': lo.peek() },
+        visuals: view('success'),
+        tone: 'success',
+        result: `findMedian() = ${javaDouble(lo.peek())}`,
+      });
+    } else {
+      r.step({
+        at: ['if (minHeap.size() == maxHeap.size()) {', 'else return (double) minHeap.peek();'],
+        explain: `Odd count and minHeap has the extra element (the rebalancing allows either side to be one larger), so its top ${hi.peek()} is the middle value.`,
+        vars: { ...sizes(), 'minHeap.peek()': hi.peek() },
+        visuals: view(undefined, 'success'),
+        tone: 'success',
+        result: `findMedian() = ${javaDouble(hi.peek())}`,
+      });
+    }
+  }
+}
+
 /* ── Registry ─────────────────────────────────────────────────────────────── */
 
 export const heapTracers: Record<string, Tracer> = {
@@ -1243,6 +1353,13 @@ export const heapTracers: Record<string, Tracer> = {
         input: 'products = ["bags","baggage","banner","box"], searchWord = "bat"',
         run: (r) => searchSuggestions(r, ['bags', 'baggage', 'banner', 'box'], 'bat'),
       },
+    ],
+  },
+  'hard/heaps/FindMedianFromDataStream': {
+    examples: [
+      { label: 'add 1, 2, then 3', input: 'addNum(1), addNum(2), findMedian(), addNum(3), findMedian()', run: (r) => medianFinder(r, [['add', 1], ['add', 2], ['median'], ['add', 3], ['median']]) },
+      { label: 'median after every add', input: 'addNum(5), findMedian(), addNum(15), findMedian(), addNum(1), findMedian(), addNum(3), findMedian()', run: (r) => medianFinder(r, [['add', 5], ['median'], ['add', 15], ['median'], ['add', 1], ['median'], ['add', 3], ['median']]) },
+      { label: 'overlap fix and minHeap one larger', input: 'addNum(2), addNum(1), addNum(6), findMedian(), addNum(4), findMedian()', run: (r) => medianFinder(r, [['add', 2], ['add', 1], ['add', 6], ['median'], ['add', 4], ['median']]) },
     ],
   },
 };

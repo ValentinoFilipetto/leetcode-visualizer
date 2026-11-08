@@ -537,7 +537,7 @@ function minWindow(r: Recorder, s: string, t: string) {
   ];
 
   r.step({
-    at: ['Map<Character, Integer> countT = new HashMap<>();', 'int have = 0, minSoFar = Integer.MAX_VALUE, need = countT.size();'],
+    at: ['Map<Character, Integer> countT = new HashMap<>();', 'int have = 0;', 'int minSoFar = Integer.MAX_VALUE;', 'int need = countT.size();'],
     explain: `t = "${t}" needs ${need} distinct characters at the right frequencies. "have" counts how many of them the window already satisfies.`,
     vars: { need, have, minSoFar: '∞' },
     visuals: view(0, 'idle'),
@@ -651,17 +651,6 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
     visuals: view(-1),
   });
 
-  if (span < dayRange) {
-    r.step({
-      at: 'if (span < dayRange) return res;',
-      explain: `Only ${span} day(s) in range — not even one full ${dayRange}-day window fits.`,
-      visuals: view(-1),
-      tone: 'success',
-      result: 'return {}',
-    });
-    return;
-  }
-
   for (let i = 0; i < span; i++) {
     const day = startDay + i;
     const windowStart = i - dayRange + 1;
@@ -676,17 +665,17 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
       const tie = dq.length > 0 && price[dq[dq.length - 1]] === p;
       dq.push(i);
       r.step({
-        at: ['if (f != null && f.get(PRICE) != null) {', 'while (!dq.isEmpty() && price[dq.peekLast()] > p) dq.removeLast();', 'dq.addLast(i);', ...skipLine],
+        at: ['if (flightMap != null && flightMap.get(PRICE) != null) {', 'while (!dq.isEmpty() && prices[dq.peekLast()] > price) dq.removeLast();', 'dq.addLast(i);', ...skipLine],
         explain:
           (popped.length
             ? `Day ${day} costs ${p}, cheaper than ${popped.map((j) => `day ${startDay + j} (${price[j]})`).join(', ')}. Those can never be a window's cheapest again — day ${day} is cheaper and stays longer — so drop them from the back.`
             : `Day ${day} costs ${p}. Nothing at the back is pricier, so just append it${tie ? ` — day ${startDay + dq[dq.length - 2]} costs the same and stays in front, so ties go to the earliest day` : ''}.`) + filling,
-        vars: { i, day, p, windowStart },
+        vars: { i, day, price: p, windowStart },
         visuals: view(i, { [i]: 'active', ...Object.fromEntries(popped.map((j) => [j, 'error'])) }),
       });
     } else {
       r.step({
-        at: ['Map<String, Integer> f = flights.get(startDay + i);', ...skipLine],
+        at: ['Map<String, Integer> flightMap = flights.get(startDay + i);', ...skipLine],
         explain: `No flight on day ${day}. The day still counts towards the window, it just can't be the answer.${filling}`,
         vars: { i, day, windowStart },
         visuals: view(i, { [i]: 'muted' }),
@@ -721,7 +710,7 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
   }
 
   r.step({
-    at: 'return res;@2',
+    at: 'return res;',
     explain: 'Every full window has been answered. Each day entered and left the deque at most once, so the whole pass is O(n).',
     visuals: [mapOf('res', res)],
     tone: 'success',
@@ -938,7 +927,7 @@ export const slidingWindowTracers: Record<string, Tracer> = {
       { label: 's = "ADOBECODEBANC", t = "ABC"', input: 's = "ADOBECODEBANC", t = "ABC"', run: (r) => minWindow(r, 'ADOBECODEBANC', 'ABC') },
     ],
   },
-  'medium/slidingwindow/CheapestFlightInEveryWindow': {
+  'hard/slidingwindow/CheapestFlightInEveryWindow': {
     examples: [
       { label: 'dayRange = 3, days 3-8', input: 'prices = {3:100, 4:300, 5:500, 6:200, 7:400, 8:100}, dayRange = 3, startDay = 3, endDay = 8', run: (r) => cheapestFlights(r, { 3: 100, 4: 300, 5: 500, 6: 200, 7: 400, 8: 100 }, 3, 3, 8) },
       { label: '10 days, dayRange = 4', input: 'prices = {1:420, 2:310, 3:500, 4:280, 5:650, 6:390, 7:460, 8:600, 9:540, 10:330}, dayRange = 4, startDay = 1, endDay = 10', run: (r) => cheapestFlights(r, { 1: 420, 2: 310, 3: 500, 4: 280, 5: 650, 6: 390, 7: 460, 8: 600, 9: 540, 10: 330 }, 4, 1, 10) },

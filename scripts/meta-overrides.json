@@ -194,6 +194,14 @@
     "slug": "sliding-window-maximum",
     "number": 239
   },
+  "hard/slidingwindow/CheapestFlightInEveryWindow": {
+    "title": "Cheapest Flight in Every Window"
+  },
+  "hard/heaps/FindMedianFromDataStream": {
+    "title": "Find Median from Data Stream",
+    "slug": "find-median-from-data-stream",
+    "number": 295
+  },
   "hard/stack/LargestRectangleInHistogram": {
     "title": "Largest Rectangle in Histogram",
     "slug": "largest-rectangle-in-histogram",
@@ -408,9 +416,6 @@
     "title": "Reorder List",
     "slug": "reorder-list",
     "number": 143
-  },
-  "medium/slidingwindow/CheapestFlightInEveryWindow": {
-    "title": "Cheapest Flight in Every Window"
   },
   "medium/slidingwindow/LongestRepeatingCharacterReplacement": {
     "title": "Longest Repeating Character Replacement",
