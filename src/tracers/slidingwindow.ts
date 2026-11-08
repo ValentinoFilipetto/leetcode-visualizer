@@ -236,65 +236,67 @@ function maxSlidingWindow(r: Recorder, nums: number[], k: number) {
 
 function lengthOfLongestSubstring(r: Recorder, s: string) {
   const cs = chars(s);
-  const set = new Set<string>();
+  const window = new Set<string>();
+  let currMax = 0;
   let l = 0;
-  let best = 0;
+  let rr = 0;
 
-  const view = (rr: number, state: CellState = 'active', hit?: string): Visual[] => [
+  const view = (state: CellState = 'active', hit?: string): Visual[] => [
     arr(cs, {
       title: 's',
       states: cs.map((_, i) => (i === rr ? state : i >= l && i < rr ? 'window' : i < l ? 'muted' : undefined)),
       pointers: [
         { name: 'l', index: l },
-        { name: 'r', index: rr, tone: 2 },
+        ...(rr < cs.length ? [{ name: 'r', index: rr, tone: 2 as const }] : []),
       ],
-      window: rr >= l ? { from: l, to: rr, label: `window "${s.slice(l, rr + 1)}" · length ${rr - l + 1}` } : undefined,
+      window: window.size > 0 ? { from: l, to: l + window.size - 1, label: `window "${[...window].join('')}" · size ${window.size}` } : undefined,
     }),
     {
-      ...setOf('charSet', set),
-      entries: [...set].map((key) => ({ key, state: key === hit ? 'error' : undefined })),
+      ...setOf('window', window),
+      entries: [...window].map((key) => ({ key, state: key === hit ? 'error' : undefined })),
     },
   ];
 
   r.step({
-    at: ['Set<Character> charSet = new HashSet<>();', 'int l = 0;'],
-    explain: 'Grow the window to the right; whenever it would contain a repeat, shrink it from the left.',
-    vars: { l, maxSubstringLength: best },
-    visuals: view(0, 'idle'),
+    at: ['Set<Character> window = new HashSet<>();', 'Integer currMax = 0;', 'int l = 0;', 'int r = 0;'],
+    explain: 'The set holds exactly the characters of s[l..r-1]. Grow it to the right; whenever the next character is already inside, shrink from the left until it is not.',
+    vars: { l, r: rr, currMax },
+    visuals: view('idle'),
   });
 
-  for (let rr = 0; rr < cs.length; rr++) {
-    while (set.has(cs[rr])) {
+  while (rr < cs.length) {
+    const curr = cs[rr];
+    while (window.has(curr)) {
       r.step({
-        at: ['while (charSet.contains(s.charAt(r)))', 'charSet.remove(s.charAt(l));'],
-        explain: `'${cs[rr]}' is already inside the window, so drop '${cs[l]}' from the left and try again.`,
-        vars: { l, r: rr, 's.charAt(r)': cs[rr] },
-        visuals: view(rr, 'error', cs[rr]),
+        at: ['while (window.contains(curr)) {', 'window.remove(s.charAt(l));', 'l++;'],
+        explain: `'${curr}' is already inside the window, so adding it would make a repeat. Drop '${cs[l]}' from the left and check again.`,
+        vars: { l, r: rr, curr },
+        visuals: view('error', curr),
         tone: 'warn',
       });
-      set.delete(cs[l]);
+      window.delete(cs[l]);
       l++;
     }
-    set.add(cs[rr]);
-    const length = rr - l + 1;
-    const improved = length > best;
-    best = Math.max(best, length);
+    window.add(curr);
+    const improved = window.size > currMax;
+    currMax = Math.max(currMax, window.size);
     r.step({
-      at: ['charSet.add(s.charAt(r));', 'maxSubstringLength = Math.max(maxSubstringLength, r - l + 1);'],
-      explain: `Window "${s.slice(l, rr + 1)}" has all-distinct characters — length ${length}.${improved ? ' New best.' : ''}`,
-      vars: { l, r: rr, length, maxSubstringLength: best },
-      visuals: view(rr, 'active'),
+      at: ['char curr = s.charAt(r);', 'window.add(curr);', 'currMax = Math.max(currMax, window.size());'],
+      explain: `Window "${s.slice(l, rr + 1)}" has all-distinct characters, so its size is just the set's size: ${window.size}.${improved ? ' New best.' : ''}`,
+      vars: { l, r: rr, curr, 'window.size()': window.size, currMax },
+      visuals: view('active'),
       tone: improved ? 'success' : 'neutral',
     });
+    rr++;
   }
 
   r.step({
-    at: 'return maxSubstringLength;',
-    explain: `The longest window without repeats was ${best} characters.`,
-    vars: { maxSubstringLength: best },
+    at: 'return currMax;',
+    explain: `r ran off the end. The longest window without repeats was ${currMax} characters.`,
+    vars: { currMax },
     visuals: [arr(cs, { title: 's' })],
     tone: 'success',
-    result: `return ${best}`,
+    result: `return ${currMax}`,
   });
 }
 
@@ -302,96 +304,104 @@ function lengthOfLongestSubstring(r: Recorder, s: string) {
 
 function characterReplacement(r: Recorder, s: string, k: number) {
   const cs = chars(s);
-  const count = new Map<string, number>();
+  const window = new Map<string, number>();
+  let currMax = 0;
   let l = 0;
-  let maxFrequency = 0;
-  let maxLength = 0;
+  let rr = 0;
+  const maxCount = () => Math.max(...window.values());
 
-  const view = (rr: number, state: CellState): Visual[] => [
-    arr(cs, {
-      title: 's',
-      states: cs.map((_, i) => (i === rr ? state : i >= l && i < rr ? 'window' : i < l ? 'muted' : undefined)),
-      pointers: [
-        { name: 'l', index: l },
-        { name: 'r', index: rr, tone: 2 },
-      ],
-      window: { from: l, to: rr, label: `window "${s.slice(l, rr + 1)}" · size ${rr - l + 1}, replacements needed ${rr - l + 1 - maxFrequency}` },
-    }),
-    mapOf('count', count),
-  ];
+  const view = (state: CellState): Visual[] => {
+    const top = maxCount();
+    return [
+      arr(cs, {
+        title: 's',
+        states: cs.map((_, i) => (i === rr ? state : i >= l && i < rr ? 'window' : i < l ? 'muted' : undefined)),
+        pointers: [
+          { name: 'l', index: l },
+          { name: 'r', index: rr, tone: 2 },
+        ],
+        window: { from: l, to: rr, label: `size ${rr - l + 1} − max count ${top} = ${rr - l + 1 - top} to replace` },
+      }),
+      {
+        ...mapOf('window', window),
+        entries: [...window].map(([key, value]) => ({ key, value, state: value === top ? 'compare' : undefined })),
+      },
+    ];
+  };
 
   r.step({
-    at: ['Map<Character, Integer> count = new HashMap<>();', 'int l = 0, maxFrequency = 0, maxLength = 0;'],
-    explain: `A window is valid when (window size − count of its most frequent character) ≤ k = ${k}: those are the characters we would have to replace.`,
-    vars: { k, l, maxFrequency, maxLength },
-    visuals: [arr(cs, { title: 's' }), mapOf('count', count)],
+    at: ['Map<Character, Integer> window = new HashMap<>();', 'int currMax = 0;', 'int l = 0;', 'int r = 0;'],
+    explain: `A window is valid when (window size − count of its most frequent character) ≤ k = ${k}: everything except the most frequent character has to be replaced.`,
+    vars: { k, l, r: rr, currMax },
+    visuals: [arr(cs, { title: 's' }), mapOf('window', window)],
   });
 
-  for (let rr = 0; rr < cs.length; rr++) {
-    count.set(cs[rr], (count.get(cs[rr]) ?? 0) + 1);
-    maxFrequency = Math.max(maxFrequency, count.get(cs[rr])!);
+  while (rr < cs.length) {
+    window.set(cs[rr], (window.get(cs[rr]) ?? 0) + 1);
     r.step({
-      at: ['count.put(s.charAt(r), 1 + count.getOrDefault(s.charAt(r), 0));', 'maxFrequency = Math.max(maxFrequency, count.get(s.charAt(r)));'],
-      explain: `Add '${cs[rr]}' to the window. The most frequent character in it now appears ${maxFrequency}×.`,
-      vars: { l, r: rr, maxFrequency, needed: rr - l + 1 - maxFrequency, k },
-      visuals: view(rr, 'active'),
+      at: 'window.put(s.charAt(r), window.getOrDefault(s.charAt(r), 0) + 1);',
+      explain: `Always add '${cs[rr]}' first, then check whether the window needs shrinking. The most frequent character now appears ${maxCount()}×.`,
+      vars: { l, r: rr, 'Collections.max(window.values())': maxCount(), toReplace: rr - l + 1 - maxCount(), k },
+      visuals: view('active'),
     });
 
-    while (rr - l + 1 - maxFrequency > k) {
+    while (rr - l + 1 - maxCount() > k) {
+      const need = rr - l + 1 - maxCount();
       r.step({
-        at: ['while (((r - l + 1) - maxFrequency) > k) {', 'count.put(s.charAt(l), count.get(s.charAt(l)) - 1);'],
-        explain: `${rr - l + 1} − ${maxFrequency} = ${rr - l + 1 - maxFrequency} replacements is more than k = ${k}, so drop '${cs[l]}' from the left.`,
-        vars: { l, r: rr, maxFrequency, needed: rr - l + 1 - maxFrequency },
-        visuals: view(rr, 'error'),
+        at: ['while (((r - l + 1) - Collections.max(window.values())) > k) {', 'window.put(s.charAt(l), window.get(s.charAt(l)) - 1);', 'l++;'],
+        explain: `${rr - l + 1} − ${maxCount()} = ${need} replacements is more than k = ${k}, so drop '${cs[l]}' from the left.`,
+        vars: { l, r: rr, 'Collections.max(window.values())': maxCount(), toReplace: need },
+        visuals: view('error'),
         tone: 'warn',
       });
-      count.set(cs[l], count.get(cs[l])! - 1);
+      window.set(cs[l], window.get(cs[l])! - 1);
       l++;
     }
 
-    const improved = rr - l + 1 > maxLength;
-    maxLength = Math.max(maxLength, rr - l + 1);
+    const improved = rr - l + 1 > currMax;
+    currMax = Math.max(currMax, rr - l + 1);
     r.step({
-      at: 'maxLength = Math.max(maxLength, (r - l + 1));',
-      explain: `Valid window of size ${rr - l + 1}.${improved ? ' New best.' : ` Best stays ${maxLength}.`}`,
-      vars: { l, r: rr, maxLength },
-      visuals: view(rr, 'window'),
+      at: ['currMax = Math.max(currMax, r - l + 1);', 'r++;'],
+      explain: `Window "${s.slice(l, rr + 1)}" can be made uniform with at most ${k} replacements — size ${rr - l + 1}.${improved ? ' New best.' : ` Best stays ${currMax}.`}`,
+      vars: { l, r: rr, currMax },
+      visuals: view('window'),
       tone: improved ? 'success' : 'neutral',
     });
+    rr++;
   }
 
   r.step({
-    at: 'return maxLength;',
-    explain: `With at most ${k} replacements the longest uniform run is ${maxLength}.`,
-    vars: { maxLength },
+    at: 'return currMax;',
+    explain: `With at most ${k} replacements the longest uniform run is ${currMax}.`,
+    vars: { currMax },
     visuals: [arr(cs, { title: 's' })],
     tone: 'success',
-    result: `return ${maxLength}`,
+    result: `return ${currMax}`,
   });
 }
 
 /* ── Permutation in String ────────────────────────────────────────────────── */
 
 function checkInclusion(r: Recorder, s1: string, s2: string) {
-  const need = new Array(26).fill(0);
-  const window = new Array(26).fill(0);
+  const s1Count = new Array(26).fill(0);
+  const s2Count = new Array(26).fill(0);
   const letters = Array.from({ length: 26 }, (_, i) => String.fromCharCode(97 + i));
   const used = [...new Set((s1 + s2).split(''))].map((c) => c.charCodeAt(0) - 97).sort((a, b) => a - b);
 
-  const countView = (values: number[], title: string, highlight?: number): Visual =>
+  const countView = (values: number[], title: string, highlight?: number, hlState: CellState = 'active'): Visual =>
     arr(
       used.map((i) => values[i]),
       {
         title,
         labels: used.map((i) => letters[i]),
         indexed: false,
-        states: used.map((i) => (i === highlight ? 'active' : values[i] > 0 ? 'compare' : undefined)),
+        states: used.map((i) => (i === highlight ? hlState : values[i] > 0 ? 'compare' : undefined)),
       },
     );
 
-  if (s1.length > s2.length) {
+  if (s2.length < s1.length) {
     r.step({
-      at: 'if (s1.length() > s2.length()) return false;',
+      at: 'if (s2.length() < s1.length()) return false;',
       explain: 's1 is longer than s2, so no window of s2 can hold a permutation of it.',
       visuals: [arr(chars(s1), { title: 's1' }), arr(chars(s2), { title: 's2' })],
       tone: 'error',
@@ -400,83 +410,69 @@ function checkInclusion(r: Recorder, s1: string, s2: string) {
     return;
   }
 
-  for (const c of s1) need[c.charCodeAt(0) - 97]++;
+  let l = 0;
+  let rr = 0;
+  for (const c of s1) s1Count[c.charCodeAt(0) - 97]++;
   r.step({
-    at: ["for (char c : s1.toCharArray()) {", "need[c - 'a']++;"],
-    explain: `Count what a permutation of "${s1}" needs. A window of s2 matches when its letter counts are identical.`,
-    vars: { 's1.length()': s1.length },
-    visuals: [arr(chars(s1), { title: 's1' }), countView(need, 'need'), arr(chars(s2), { title: 's2' })],
+    at: ['int l = 0;', 'int r = 0;', "for (char c : s1.toCharArray()) s1Count[c - 'a']++;"],
+    explain: `Count what a permutation of "${s1}" needs. A window of s2 matches when its letter counts are identical — order doesn't matter.`,
+    vars: { l, r: rr, 's1.length()': s1.length },
+    visuals: [arr(chars(s1), { title: 's1' }), countView(s1Count, 's1Count'), arr(chars(s2), { title: 's2' })],
   });
 
-  let left = 0;
-  for (let right = 0; right < s2.length; right++) {
-    const ci = s2.charCodeAt(right) - 97;
-    window[ci]++;
-    r.step({
-      at: "window[s2.charAt(right) - 'a']++;",
-      explain: `Extend the window with '${s2[right]}'.`,
-      vars: { left, right, window: `size ${right - left + 1}` },
-      visuals: [
-        arr(chars(s2), {
-          title: 's2',
-          states: chars(s2).map((_, i) => (i === right ? 'active' : i >= left && i < right ? 'window' : undefined)),
-          pointers: [
-            { name: 'left', index: left },
-            { name: 'right', index: right, tone: 2 },
-          ],
-        }),
-        countView(need, 'need'),
-        countView(window, 'window', ci),
+  const s2View = (states: (i: number) => CellState | undefined) =>
+    arr(chars(s2), {
+      title: 's2',
+      states: chars(s2).map((_, i) => states(i)),
+      pointers: [
+        { name: 'l', index: l },
+        { name: 'r', index: rr, tone: 2 },
       ],
     });
 
-    if (right - left + 1 > s1.length) {
-      const li = s2.charCodeAt(left) - 97;
-      window[li]--;
+  while (rr < s2.length) {
+    if (rr + 1 > s1.length) {
+      const li = s2.charCodeAt(l) - 97;
+      s2Count[li]--;
       r.step({
-        at: ["window[s2.charAt(left) - 'a']--;", 'left++;'],
-        explain: `The window grew past ${s1.length} characters, so drop '${s2[left]}' from the left — the window is a fixed-size scanner.`,
-        vars: { left: left + 1, right },
+        at: ['if (r + 1 > s1.length()) {', "s2Count[s2.charAt(l) - 'a']--;", 'l++;'],
+        explain: `Taking s2[${rr}] would make the window longer than ${s1.length}, so first drop '${s2[l]}' from the left — the window is a fixed-size scanner.`,
+        vars: { l, r: rr, 'r + 1': rr + 1, 's1.length()': s1.length },
         visuals: [
-          arr(chars(s2), {
-            title: 's2',
-            states: chars(s2).map((_, i) => (i === left ? 'error' : i > left && i <= right ? 'window' : undefined)),
-            pointers: [
-              { name: 'left', index: left },
-              { name: 'right', index: right, tone: 2 },
-            ],
-          }),
-          countView(need, 'need'),
-          countView(window, 'window', li),
+          s2View((i) => (i === l ? 'error' : i > l && i < rr ? 'window' : undefined)),
+          countView(s1Count, 's1Count'),
+          countView(s2Count, 's2Count', li, 'error'),
         ],
+        tone: 'warn',
       });
-      left++;
+      l++;
     }
 
-    if (need.every((v, i) => v === window[i])) {
-      r.step({
-        at: ['if (Arrays.equals(need, window)) {', 'return true;'],
-        explain: `"${s2.slice(left, right + 1)}" has exactly the same letter counts as "${s1}" — it is a permutation.`,
-        vars: { left, right, match: s2.slice(left, right + 1) },
-        visuals: [
-          arr(chars(s2), {
-            title: 's2',
-            states: chars(s2).map((_, i) => (i >= left && i <= right ? 'success' : undefined)),
-          }),
-          countView(need, 'need'),
-          countView(window, 'window'),
-        ],
-        tone: 'success',
-        result: 'return true',
-      });
-      return;
-    }
+    const ci = s2.charCodeAt(rr) - 97;
+    s2Count[ci]++;
+    const match = s1Count.every((v, i) => v === s2Count[i]);
+    r.step({
+      at: ["s2Count[s2.charAt(r) - 'a']++;", 'if (Arrays.equals(s1Count, s2Count)) return true;'],
+      explain: match
+        ? `"${s2.slice(l, rr + 1)}" has exactly the same letter counts as "${s1}" — it is a permutation.`
+        : `Add '${s2[rr]}'. The counts of "${s2.slice(l, rr + 1)}" don't equal s1's yet, so keep sliding.`,
+      vars: { l, r: rr, window: s2.slice(l, rr + 1) },
+      visuals: [
+        s2View((i) => (match && i >= l && i <= rr ? 'success' : i === rr ? 'active' : i >= l && i < rr ? 'window' : undefined)),
+        countView(s1Count, 's1Count'),
+        countView(s2Count, 's2Count', ci),
+      ],
+      tone: match ? 'success' : 'neutral',
+      result: match ? 'return true' : undefined,
+    });
+    if (match) return;
+    rr++;
   }
 
   r.step({
     at: 'return false;@2',
     explain: 'No window of s2 ever matched the required letter counts.',
-    visuals: [arr(chars(s2), { title: 's2' }), countView(need, 'need'), countView(window, 'window')],
+    visuals: [arr(chars(s2), { title: 's2' }), countView(s1Count, 's1Count'), countView(s2Count, 's2Count')],
     tone: 'error',
     result: 'return false',
   });
@@ -733,6 +729,168 @@ function cheapestFlights(r: Recorder, prices: Record<number, number>, dayRange: 
   });
 }
 
+/* ── Minimum Size Subarray Sum ────────────────────────────────────────────── */
+
+function minSubArrayLen(r: Recorder, target: number, nums: number[]) {
+  let currMin = Infinity;
+  let windowSum = 0;
+  let l = 0;
+  let rr = 0;
+  const show = (v: number) => (v === Infinity ? 'MAX_VALUE' : v);
+
+  const view = (state: CellState, best?: [number, number]): Visual[] => [
+    arr(nums, {
+      title: 'nums',
+      states: nums.map((_, i) =>
+        best && i >= best[0] && i <= best[1] ? 'success' : i === rr ? state : i >= l && i < rr ? 'window' : i < l ? 'muted' : undefined,
+      ),
+      pointers: [
+        { name: 'l', index: l },
+        ...(rr < nums.length ? [{ name: 'r', index: rr, tone: 2 as const }] : []),
+      ],
+      window: rr < nums.length && l <= rr ? { from: l, to: rr, label: `sum ${windowSum} ${windowSum >= target ? '≥' : '<'} target ${target}` } : undefined,
+    }),
+  ];
+
+  r.step({
+    at: ['int currMin = Integer.MAX_VALUE;', 'int windowSum = 0;', 'int l = 0;', 'int r = 0;'],
+    explain: `All numbers are positive, so growing the window only raises its sum and shrinking only lowers it. Grow until the sum reaches ${target}, then shrink as far as it stays there.`,
+    vars: { target, l, r: rr, windowSum, currMin: show(currMin) },
+    visuals: view('idle'),
+  });
+
+  while (rr < nums.length) {
+    windowSum += nums[rr];
+    r.step({
+      at: 'windowSum += nums[r];',
+      explain: windowSum >= target
+        ? `Adding ${nums[rr]} brings the sum to ${windowSum}, which reaches the target. Now try to shrink.`
+        : `Adding ${nums[rr]} brings the sum to ${windowSum}, still below ${target}: keep growing.`,
+      vars: { l, r: rr, windowSum, currMin: show(currMin) },
+      visuals: view('active'),
+    });
+
+    while (windowSum >= target) {
+      const len = rr - l + 1;
+      const improved = len < currMin;
+      currMin = Math.min(currMin, len);
+      r.step({
+        at: ['while (windowSum >= target) {', 'currMin = Math.min(currMin, r - l + 1);'],
+        explain: `[${l}..${rr}] sums to ${windowSum} ≥ ${target} with length ${len}.${improved ? ' Shortest so far.' : ` Not shorter than ${currMin}.`}`,
+        vars: { l, r: rr, windowSum, length: len, currMin: show(currMin) },
+        visuals: view('active', [l, rr]),
+        tone: improved ? 'success' : 'neutral',
+      });
+      const dropped = nums[l];
+      windowSum -= nums[l];
+      r.step({
+        at: ['windowSum -= nums[l];', 'l++;'],
+        explain: `Any longer window ending at r is useless now, so drop ${dropped} from the left to see if a shorter one still works. Sum becomes ${windowSum}.`,
+        vars: { l, r: rr, windowSum, currMin: show(currMin) },
+        visuals: [
+          arr(nums, {
+            title: 'nums',
+            states: nums.map((_, i) => (i === l ? 'error' : i > l && i <= rr ? 'window' : i < l ? 'muted' : undefined)),
+            pointers: [
+              { name: 'l', index: l },
+              { name: 'r', index: rr, tone: 2 },
+            ],
+          }),
+        ],
+        tone: 'warn',
+      });
+      l++;
+    }
+    rr++;
+  }
+
+  const res = currMin === Infinity ? 0 : currMin;
+  r.step({
+    at: 'return currMin == Integer.MAX_VALUE ? 0 : currMin;',
+    explain: currMin === Infinity
+      ? `Even the whole array sums to less than ${target}, so currMin never moved off MAX_VALUE: no valid subarray, return 0.`
+      : `The shortest subarray with sum ≥ ${target} has length ${currMin}. Each index entered and left the window at most once: O(n).`,
+    vars: { currMin: show(currMin) },
+    visuals: [arr(nums, { title: 'nums' })],
+    tone: currMin === Infinity ? 'error' : 'success',
+    result: `return ${res}`,
+  });
+}
+
+/* ── Find K Closest Elements ──────────────────────────────────────────────── */
+
+function findClosestElements(r: Recorder, nums: number[], k: number, x: number) {
+  const dq: number[] = []; // indices into nums; always a contiguous run
+
+  const view = (i: number, extra: Record<number, CellState> = {}): Visual[] => {
+    const inDq = new Set(dq);
+    return [
+      arr(nums, {
+        title: 'arr',
+        states: nums.map((_, j) => extra[j] ?? (inDq.has(j) ? 'window' : j < i ? 'muted' : undefined)),
+        labels: nums.map((v) => `|${v}−${x}|=${Math.abs(v - x)}`),
+        pointers: i < nums.length ? [{ name: 'i', index: i, tone: 2 }] : [],
+        window: dq.length ? { from: dq[0], to: dq[dq.length - 1], label: `deque · size ${dq.length}` } : undefined,
+      }),
+      deque('deque', dq.map((j) => nums[j]), { emptyHint: 'empty' }),
+    ];
+  };
+
+  r.step({
+    at: 'Deque<Integer> deque = new ArrayDeque<>();',
+    explain: `arr is sorted, so the k closest values to x = ${x} form a contiguous run, and the value farthest from x in any run is one of its two ends. The deque holds the current run.`,
+    vars: { k, x },
+    visuals: view(0),
+  });
+
+  for (let i = 0; i < nums.length; i++) {
+    dq.push(i);
+    r.step({
+      at: ['for (int i = 0; i < arr.length; i++) {', 'deque.addLast(arr[i]);'],
+      explain: dq.length > k
+        ? `Append ${nums[i]}. The deque now has ${dq.length} > k = ${k} elements, so one end has to go.`
+        : `Append ${nums[i]}. The deque has ${dq.length} ≤ k = ${k} elements, nothing to drop yet.`,
+      vars: { i, 'arr[i]': nums[i], 'deque.size()': dq.length, k },
+      visuals: view(i, { [i]: 'active' }),
+    });
+
+    if (dq.length > k) {
+      const fi = dq[0];
+      const bi = dq[dq.length - 1];
+      const a = nums[fi];
+      const b = nums[bi];
+      const da = Math.abs(a - x);
+      const db = Math.abs(b - x);
+      const dropBack = da <= db;
+      r.step({
+        at: dropBack
+          ? ['if (deque.size() > k) {', 'int a = deque.peekFirst();', 'int b = deque.peekLast();', 'if (Math.abs(a - x) <= Math.abs(b - x)) deque.removeLast();']
+          : ['if (deque.size() > k) {', 'int a = deque.peekFirst();', 'int b = deque.peekLast();', 'else deque.removeFirst();'],
+        explain: dropBack
+          ? `|${a} − ${x}| = ${da} ≤ |${b} − ${x}| = ${db}${da === db ? ' (a tie goes to the smaller value)' : ''}, so the back ${b} is the worse end: drop it.${da < db ? ' Every later value is even larger, so from here on each new element gets dropped too.' : ''}`
+          : `|${a} − ${x}| = ${da} > |${b} − ${x}| = ${db}, so the front ${a} is farther from x: drop it and the run slides right.`,
+        vars: { a, b, '|a - x|': da, '|b - x|': db },
+        visuals: view(i, { [fi]: dropBack ? 'compare' : 'error', [bi]: dropBack ? 'error' : 'compare' }),
+        tone: 'warn',
+      });
+      if (dropBack) dq.pop();
+      else dq.shift();
+    }
+  }
+
+  const res = dq.map((j) => nums[j]);
+  r.step({
+    at: 'return new ArrayList<>(deque);',
+    explain: `The deque already holds the ${k} closest values in sorted order, because it is a contiguous slice of the sorted array.`,
+    vars: { k, x },
+    visuals: [
+      arr(nums, { title: 'arr', states: nums.map((_, j) => (dq.includes(j) ? 'success' : 'muted')) }),
+    ],
+    tone: 'success',
+    result: `return [${res.join(', ')}]`,
+  });
+}
+
 /* ── Registry ─────────────────────────────────────────────────────────────── */
 
 export const slidingWindowTracers: Record<string, Tracer> = {
@@ -786,6 +944,20 @@ export const slidingWindowTracers: Record<string, Tracer> = {
       { label: '10 days, dayRange = 4', input: 'prices = {1:420, 2:310, 3:500, 4:280, 5:650, 6:390, 7:460, 8:600, 9:540, 10:330}, dayRange = 4, startDay = 1, endDay = 10', run: (r) => cheapestFlights(r, { 1: 420, 2: 310, 3: 500, 4: 280, 5: 650, 6: 390, 7: 460, 8: 600, 9: 540, 10: 330 }, 4, 1, 10) },
       { label: 'missing days and a tie', input: 'prices = {1:250, 2:180, 4:180, 5:300, 8:90}, dayRange = 3, startDay = 1, endDay = 9', run: (r) => cheapestFlights(r, { 1: 250, 2: 180, 4: 180, 5: 300, 8: 90 }, 3, 1, 9) },
       { label: 'empty windows are omitted', input: 'prices = {1:120, 5:80}, dayRange = 2, startDay = 1, endDay = 5', run: (r) => cheapestFlights(r, { 1: 120, 5: 80 }, 2, 1, 5) },
+    ],
+  },
+  'medium/slidingwindow/MinimumSizeSubarraySum': {
+    examples: [
+      { label: 'target = 7, nums = [2,3,1,2,4,3]', input: 'target = 7, nums = [2, 3, 1, 2, 4, 3]', run: (r) => minSubArrayLen(r, 7, [2, 3, 1, 2, 4, 3]) },
+      { label: 'single element suffices', input: 'target = 4, nums = [1, 4, 4]', run: (r) => minSubArrayLen(r, 4, [1, 4, 4]) },
+      { label: 'no valid subarray', input: 'target = 11, nums = [1, 2, 3, 4]', run: (r) => minSubArrayLen(r, 11, [1, 2, 3, 4]) },
+    ],
+  },
+  'medium/slidingwindow/FindKClosestElements': {
+    examples: [
+      { label: 'arr = [1,2,3,4,5], k = 4, x = 3', input: 'arr = [1, 2, 3, 4, 5], k = 4, x = 3', run: (r) => findClosestElements(r, [1, 2, 3, 4, 5], 4, 3) },
+      { label: 'window slides right', input: 'arr = [1, 3, 5, 7, 9, 11], k = 3, x = 8', run: (r) => findClosestElements(r, [1, 3, 5, 7, 9, 11], 3, 8) },
+      { label: 'x below every value', input: 'arr = [2, 4, 6, 8, 10], k = 2, x = 1', run: (r) => findClosestElements(r, [2, 4, 6, 8, 10], 2, 1) },
     ],
   },
 };

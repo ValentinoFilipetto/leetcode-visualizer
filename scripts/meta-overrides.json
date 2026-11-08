@@ -427,6 +427,16 @@
     "slug": "permutation-in-string",
     "number": 567
   },
+  "medium/slidingwindow/MinimumSizeSubarraySum": {
+    "title": "Minimum Size Subarray Sum",
+    "slug": "minimum-size-subarray-sum",
+    "number": 209
+  },
+  "medium/slidingwindow/FindKClosestElements": {
+    "title": "Find K Closest Elements",
+    "slug": "find-k-closest-elements",
+    "number": 658
+  },
   "medium/sorting/HIndex": {
     "title": "H-Index",
     "slug": "h-index",
