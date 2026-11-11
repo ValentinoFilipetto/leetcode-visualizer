@@ -232,3 +232,28 @@ export function treeNodes(node: TreeNodeViz | null | undefined): TreeNodeViz[] {
   if (!node) return [];
   return [node, ...treeNodes(node.left), ...treeNodes(node.right)];
 }
+
+/** Java's String.hashCode(), with the same 32-bit overflow. */
+export function javaStringHash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return h;
+}
+
+/**
+ * The order a java.util.HashMap iterates its keys in (bucket by spread hash, then
+ * insertion order within a bucket), so heaps fed from entrySet() get offered the
+ * same sequence as in Java. `keys` must be in first-insertion order.
+ */
+export function javaHashMapOrder<K>(keys: K[], hash: (k: K) => number): K[] {
+  let cap = 16;
+  while (keys.length > cap * 0.75) cap *= 2;
+  const bucket = (k: K) => {
+    const h = hash(k);
+    return (h ^ (h >>> 16)) & (cap - 1);
+  };
+  return keys
+    .map((k, i) => ({ k, i, b: bucket(k) }))
+    .sort((x, y) => x.b - y.b || x.i - y.i)
+    .map((x) => x.k);
+}

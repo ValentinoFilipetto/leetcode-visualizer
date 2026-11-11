@@ -202,6 +202,11 @@
     "slug": "find-median-from-data-stream",
     "number": 295
   },
+  "hard/heaps/IPO": {
+    "title": "IPO",
+    "slug": "ipo",
+    "number": 502
+  },
   "hard/stack/LargestRectangleInHistogram": {
     "title": "Largest Rectangle in Histogram",
     "slug": "largest-rectangle-in-histogram",
@@ -441,6 +446,11 @@
     "title": "Find K Closest Elements",
     "slug": "find-k-closest-elements",
     "number": 658
+  },
+  "medium/slidingwindow/FindRepeatedDNASequences": {
+    "title": "Repeated DNA Sequences",
+    "slug": "repeated-dna-sequences",
+    "number": 187
   },
   "medium/sorting/HIndex": {
     "title": "H-Index",

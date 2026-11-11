@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, chars, chips, heap, intervalsViz, list, mapOf } from './helpers';
+import { arr, chars, chips, heap, intervalsViz, javaHashMapOrder, javaStringHash, list, mapOf } from './helpers';
 
 /**
  * A textbook binary heap, so the array layout shown in the visuals matches what
@@ -55,31 +55,6 @@ function ordinal(n: number): string {
   const rest = n % 100;
   if (rest >= 11 && rest <= 13) return `${n}th`;
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
-}
-
-/** Java's String.hashCode(), with the same 32-bit overflow. */
-function javaStringHash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
-  return h;
-}
-
-/**
- * The order a java.util.HashMap iterates its keys in (bucket by spread hash, then
- * insertion order within a bucket), so heaps fed from entrySet() get offered the
- * same sequence as in Java. `keys` must be in first-insertion order.
- */
-function javaHashMapOrder<K>(keys: K[], hash: (k: K) => number): K[] {
-  let cap = 16;
-  while (keys.length > cap * 0.75) cap *= 2;
-  const bucket = (k: K) => {
-    const h = hash(k);
-    return (h ^ (h >>> 16)) & (cap - 1);
-  };
-  return keys
-    .map((k, i) => ({ k, i, b: bucket(k) }))
-    .sort((x, y) => x.b - y.b || x.i - y.i)
-    .map((x) => x.k);
 }
 
 /** Java String.compareTo: lexicographic by UTF-16 code unit, same as JS < on strings. */
@@ -1121,27 +1096,27 @@ function searchSuggestions(r: Recorder, products: string[], searchWord: string) 
 type MedianOp = ['add', number] | ['median'];
 
 function medianFinder(r: Recorder, ops: MedianOp[]) {
-  const lo = maxHeap(); // Java: maxHeap, the smaller half
-  const hi = minHeap(); // Java: minHeap, the larger half
+  const lo = maxHeap(); // Java: smallHeap, the smaller half
+  const hi = minHeap(); // Java: largeHeap, the larger half
   const seen: number[] = [];
   const javaDouble = (v: number) => (Number.isInteger(v) ? v.toFixed(1) : String(v));
 
   const view = (loTop?: CellState, hiTop?: CellState): Visual[] => {
     const sorted = [...seen].sort((a, b) => a - b);
     return [
-      heap('maxHeap  (smaller half, largest on top)', lo.items, 'max', { states: lo.items.map((_, i) => (i === 0 ? loTop : undefined)) }),
-      heap('minHeap  (larger half, smallest on top)', hi.items, 'min', { states: hi.items.map((_, i) => (i === 0 ? hiTop : undefined)) }),
+      heap('smallHeap  (max-heap: smaller half, largest on top)', lo.items, 'max', { states: lo.items.map((_, i) => (i === 0 ? loTop : undefined)) }),
+      heap('largeHeap  (min-heap: larger half, smallest on top)', hi.items, 'min', { states: hi.items.map((_, i) => (i === 0 ? hiTop : undefined)) }),
       arr(sorted, {
         title: 'stream, sorted (for reference only)',
         states: sorted.map((_, i) => (i < lo.size ? 'window' : 'compare')),
-        note: `maxHeap holds the first ${lo.size}, minHeap the last ${hi.size}`,
+        note: `smallHeap holds the first ${lo.size}, largeHeap the last ${hi.size}`,
       }),
     ];
   };
-  const sizes = () => ({ 'maxHeap.size()': lo.size, 'minHeap.size()': hi.size });
+  const sizes = () => ({ 'smallHeap.size()': lo.size, 'largeHeap.size()': hi.size });
 
   r.step({
-    at: ['minHeap = new PriorityQueue<>();', 'maxHeap = new PriorityQueue<>((a, b) -> b - a);'],
+    at: ['smallHeap = new PriorityQueue<>((a, b) -> Integer.compare(b, a));', 'largeHeap = new PriorityQueue<>();'],
     explain: 'Split the stream into two halves: a max-heap for the smaller half and a min-heap for the larger one. The median then only ever depends on the two heap tops.',
     vars: sizes(),
     visuals: view(),
@@ -1155,17 +1130,17 @@ function medianFinder(r: Recorder, ops: MedianOp[]) {
       const tooBig = lo.size - hi.size > 1;
       const outOfOrder = hi.size > 0 && lo.peek() > hi.peek();
       r.step({
-        at: 'maxHeap.add(num);',
+        at: 'smallHeap.add(num);',
         explain:
-          `addNum(${num}): every number goes into maxHeap first. ` +
+          `addNum(${num}): every number goes into smallHeap first. ` +
           (tooBig
-            ? `maxHeap is now ${lo.size - hi.size} bigger than minHeap, so it has to give one up.`
+            ? `smallHeap is now ${lo.size - hi.size} bigger than largeHeap, so it has to give one up.`
             : outOfOrder
-              ? `maxHeap's top ${lo.peek()} is bigger than minHeap's top ${hi.peek()}, so the halves overlap and must be fixed.`
+              ? `smallHeap's top ${lo.peek()} is bigger than largeHeap's top ${hi.peek()}, so the halves overlap and must be fixed.`
               : hi.size === 0
-                ? 'minHeap is empty and the sizes are within one, so nothing needs to move.'
+                ? 'largeHeap is empty and the sizes are within one, so nothing needs to move.'
                 : `${lo.peek()} ≤ ${hi.peek()} and the sizes are within one, so both halves are still valid.`),
-        vars: { num, ...sizes(), 'maxHeap.peek()': lo.peek(), 'minHeap.peek()': hi.size ? hi.peek() : 'null' },
+        vars: { num, ...sizes(), 'smallHeap.peek()': lo.peek(), 'largeHeap.peek()': hi.size ? hi.peek() : 'null' },
         visuals: view('active', hi.size ? 'compare' : undefined),
       });
 
@@ -1173,10 +1148,10 @@ function medianFinder(r: Recorder, ops: MedianOp[]) {
         const moved = lo.poll();
         hi.offer(moved);
         r.step({
-          at: ['if (maxHeap.size() - minHeap.size() > 1 ||', '!minHeap.isEmpty() && maxHeap.peek() > minHeap.peek()) {', 'minHeap.add(maxHeap.poll());'],
+          at: ['smallHeap.size() - largeHeap.size() > 1 ||', '!largeHeap.isEmpty() && smallHeap.peek() > largeHeap.peek()', 'largeHeap.add(smallHeap.poll());'],
           explain: tooBig
-            ? `Move maxHeap's largest value ${moved} over to minHeap: it is the one that belongs at the bottom of the larger half.`
-            : `${moved} is too big for the smaller half. Moving maxHeap's top to minHeap puts every value back on the correct side.`,
+            ? `Move smallHeap's largest value ${moved} over to largeHeap: it is the one that belongs at the bottom of the larger half.`
+            : `${moved} is too big for the smaller half. Moving smallHeap's top to largeHeap puts every value back on the correct side.`,
           vars: { moved, ...sizes() },
           visuals: view(undefined, 'active'),
           tone: 'warn',
@@ -1187,8 +1162,8 @@ function medianFinder(r: Recorder, ops: MedianOp[]) {
         const moved = hi.poll();
         lo.offer(moved);
         r.step({
-          at: ['if (minHeap.size() - maxHeap.size() > 1) {', 'maxHeap.add(minHeap.poll());'],
-          explain: `That move left minHeap ${hi.size + 1 - (lo.size - 1)} bigger than maxHeap. Hand its smallest value ${moved} back so the sizes differ by at most one.`,
+          at: ['if (largeHeap.size() - smallHeap.size() > 1) {', 'smallHeap.add(largeHeap.poll());'],
+          explain: `That move left largeHeap ${hi.size + 1 - (lo.size - 1)} bigger than smallHeap. Hand its smallest value ${moved} back so the sizes differ by at most one.`,
           vars: { moved, ...sizes() },
           visuals: view('active'),
           tone: 'warn',
@@ -1197,33 +1172,130 @@ function medianFinder(r: Recorder, ops: MedianOp[]) {
     } else if (lo.size === hi.size) {
       const median = (hi.peek() + lo.peek()) / 2;
       r.step({
-        at: ['if (minHeap.size() == maxHeap.size()) {', 'return (double) (minHeap.peek() + maxHeap.peek()) / 2;'],
+        at: ['if (smallHeap.size() == largeHeap.size()) {', 'return (double) (largeHeap.peek() + smallHeap.peek()) / 2;'],
         explain: `Even count: the two middle values are exactly the two tops, ${lo.peek()} and ${hi.peek()}. Average them.`,
-        vars: { ...sizes(), 'maxHeap.peek()': lo.peek(), 'minHeap.peek()': hi.peek() },
+        vars: { ...sizes(), 'smallHeap.peek()': lo.peek(), 'largeHeap.peek()': hi.peek() },
         visuals: view('success', 'success'),
         tone: 'success',
         result: `findMedian() = ${javaDouble(median)}`,
       });
     } else if (lo.size > hi.size) {
       r.step({
-        at: ['if (minHeap.size() == maxHeap.size()) {', '} else if (maxHeap.size() > minHeap.size()) return (double) maxHeap.peek();'],
-        explain: `Odd count and maxHeap has the extra element, so its top ${lo.peek()} is the middle value.`,
-        vars: { ...sizes(), 'maxHeap.peek()': lo.peek() },
+        at: ['if (smallHeap.size() == largeHeap.size()) {', '} else if (smallHeap.size() > largeHeap.size()) {', 'return smallHeap.peek();'],
+        explain: `Odd count and smallHeap has the extra element, so its top ${lo.peek()} is the middle value.`,
+        vars: { ...sizes(), 'smallHeap.peek()': lo.peek() },
         visuals: view('success'),
         tone: 'success',
         result: `findMedian() = ${javaDouble(lo.peek())}`,
       });
     } else {
       r.step({
-        at: ['if (minHeap.size() == maxHeap.size()) {', 'else return (double) minHeap.peek();'],
-        explain: `Odd count and minHeap has the extra element (the rebalancing allows either side to be one larger), so its top ${hi.peek()} is the middle value.`,
-        vars: { ...sizes(), 'minHeap.peek()': hi.peek() },
+        at: ['if (smallHeap.size() == largeHeap.size()) {', '} else return largeHeap.peek();'],
+        explain: `Odd count and largeHeap has the extra element (the rebalancing allows either side to be one larger), so its top ${hi.peek()} is the middle value.`,
+        vars: { ...sizes(), 'largeHeap.peek()': hi.peek() },
         visuals: view(undefined, 'success'),
         tone: 'success',
         result: `findMedian() = ${javaDouble(hi.peek())}`,
       });
     }
   }
+}
+
+/* ── IPO ──────────────────────────────────────────────────────────────────── */
+
+function findMaximizedCapital(r: Recorder, k: number, w: number, profits: number[], capital: number[]) {
+  type Project = [number, number, number]; // [capital, profit, index] (index is display-only)
+  const smallCapitals = new BinaryHeap<Project>((a, b) => a[0] - b[0]);
+  const largeProfits = new BinaryHeap<[number, number]>((a, b) => b[0] - a[0]); // [profit, index]
+  const done = new Set<number>();
+
+  const view = (o: { capTop?: CellState; profitTop?: CellState; hot?: number[] } = {}): Visual[] => {
+    const pooled = new Set(largeProfits.items.map(([, j]) => j));
+    return [
+      arr(profits.map((p) => `+${p}`), {
+        title: 'projects  (profit, capital needed below)',
+        labels: capital.map((c) => `needs ${c}`),
+        indexed: false,
+        states: profits.map((_, i) =>
+          o.hot?.includes(i) ? 'active' : done.has(i) ? 'done' : pooled.has(i) ? 'window' : capital[i] > w ? 'muted' : undefined,
+        ),
+      }),
+      heap('smallCapitals  (min-heap: cheapest project on top)', smallCapitals.items.map(([c, p]) => `c${c} p${p}`), 'min', {
+        states: smallCapitals.items.map((_, x) => (x === 0 ? o.capTop : undefined)),
+      }),
+      heap('largeProfits  (max-heap: affordable profits, best on top)', largeProfits.items.map(([p]) => p), 'max', {
+        states: largeProfits.items.map((_, x) => (x === 0 ? o.profitTop : undefined)),
+      }),
+    ];
+  };
+
+  r.step({
+    at: ['Queue<int[]> smallCapitals = new PriorityQueue<>', 'Queue<Integer> largeProfits = new PriorityQueue<>'],
+    explain:
+      'Capital only ever grows, so a project that becomes affordable stays affordable. One heap releases projects in order of cost; the other keeps the profits we can already afford, best first.',
+    vars: { k, w },
+    visuals: view(),
+  });
+
+  for (let i = 0; i < capital.length; i++) smallCapitals.offer([capital[i], profits[i], i]);
+  r.step({
+    at: 'for (int i = 0; i < capital.length; i++) smallCapitals.offer(',
+    explain: 'Every project starts locked away in smallCapitals, paired with its profit, so the cheapest one is always the next to unlock.',
+    vars: { k, w },
+    visuals: view({ capTop: 'compare' }),
+  });
+
+  for (let i = 0; i < k; i++) {
+    const moved: number[] = [];
+    while (smallCapitals.size > 0 && smallCapitals.peek()[0] <= w) {
+      const [, p, j] = smallCapitals.poll();
+      moved.push(j);
+      largeProfits.offer([p, j]);
+    }
+    const blocker = smallCapitals.size > 0 ? smallCapitals.peek()[0] : undefined;
+    r.step({
+      at: ['while (!smallCapitals.isEmpty() && smallCapitals.peek()[0] <= w) {', 'largeProfits.offer(smallCapitals.poll()[1]);'],
+      explain:
+        `Round ${i + 1} of ${k}, w = ${w}. ` +
+        (moved.length
+          ? `${moved.map((j) => `+${profits[j]} (needs ${capital[j]})`).join(', ')} ${moved.length === 1 ? 'is' : 'are'} now affordable and join${moved.length === 1 ? 's' : ''} the profit pool. `
+          : 'Nothing new became affordable since the last round. ') +
+        (blocker !== undefined ? `The cheapest locked project needs ${blocker} > ${w}, so unlocking stops there.` : 'No locked projects remain.'),
+      vars: { i, k, w, 'largeProfits.size()': largeProfits.size },
+      visuals: view({ hot: moved, capTop: blocker !== undefined ? 'error' : undefined, profitTop: largeProfits.size ? 'compare' : undefined }),
+    });
+
+    if (largeProfits.size === 0) {
+      r.step({
+        at: 'if (largeProfits.isEmpty()) break;',
+        explain: `No project is affordable with w = ${w}, and w cannot grow without one, so the remaining ${k - i} pick${k - i === 1 ? '' : 's'} can never be used.`,
+        vars: { i, w },
+        visuals: view({ capTop: blocker !== undefined ? 'error' : undefined }),
+        tone: 'warn',
+      });
+      break;
+    }
+
+    const [gain, j] = largeProfits.poll();
+    done.add(j);
+    w += gain;
+    r.step({
+      at: 'w += largeProfits.poll();',
+      explain: `Take the most profitable affordable project (+${gain}). Starting a project never spends capital, so only the profit matters, and a bigger w may unlock more projects next round.`,
+      vars: { i, gain, w },
+      visuals: view({ hot: [j] }),
+      tone: 'success',
+    });
+  }
+
+  r.step({
+    at: 'return w;',
+    explain: `${done.size} project${done.size === 1 ? '' : 's'} completed, each the most profitable one affordable when it was picked.`,
+    vars: { w },
+    visuals: view(),
+    tone: 'success',
+    result: `return ${w}`,
+  });
 }
 
 /* ── Registry ─────────────────────────────────────────────────────────────── */
@@ -1359,7 +1431,14 @@ export const heapTracers: Record<string, Tracer> = {
     examples: [
       { label: 'add 1, 2, then 3', input: 'addNum(1), addNum(2), findMedian(), addNum(3), findMedian()', run: (r) => medianFinder(r, [['add', 1], ['add', 2], ['median'], ['add', 3], ['median']]) },
       { label: 'median after every add', input: 'addNum(5), findMedian(), addNum(15), findMedian(), addNum(1), findMedian(), addNum(3), findMedian()', run: (r) => medianFinder(r, [['add', 5], ['median'], ['add', 15], ['median'], ['add', 1], ['median'], ['add', 3], ['median']]) },
-      { label: 'overlap fix and minHeap one larger', input: 'addNum(2), addNum(1), addNum(6), findMedian(), addNum(4), findMedian()', run: (r) => medianFinder(r, [['add', 2], ['add', 1], ['add', 6], ['median'], ['add', 4], ['median']]) },
+      { label: 'overlap fix and largeHeap one larger', input: 'addNum(2), addNum(1), addNum(6), findMedian(), addNum(4), findMedian()', run: (r) => medianFinder(r, [['add', 2], ['add', 1], ['add', 6], ['median'], ['add', 4], ['median']]) },
+    ],
+  },
+  'hard/heaps/IPO': {
+    examples: [
+      { label: 'k = 2, w = 0', input: 'k = 2, w = 0, profits = [1, 2, 3], capital = [0, 1, 1]', run: (r) => findMaximizedCapital(r, 2, 0, [1, 2, 3], [0, 1, 1]) },
+      { label: 'each pick unlocks the next', input: 'k = 3, w = 0, profits = [1, 2, 3], capital = [0, 1, 2]', run: (r) => findMaximizedCapital(r, 3, 0, [1, 2, 3], [0, 1, 2]) },
+      { label: 'runs out of affordable projects', input: 'k = 4, w = 1, profits = [2, 5, 3, 4, 1], capital = [1, 9, 0, 10, 2]', run: (r) => findMaximizedCapital(r, 4, 1, [2, 5, 3, 4, 1], [1, 9, 0, 10, 2]) },
     ],
   },
 };

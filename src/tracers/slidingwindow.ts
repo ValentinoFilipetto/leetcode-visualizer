@@ -1,6 +1,6 @@
 import type { Recorder } from '../trace/recorder';
 import type { CellState, Tracer, Visual } from '../types';
-import { arr, bars, chars, deque, mapOf, setOf } from './helpers';
+import { arr, bars, chars, deque, javaHashMapOrder, javaStringHash, mapOf, setOf } from './helpers';
 
 /* ── Best Time to Buy and Sell Stock ──────────────────────────────────────── */
 
@@ -880,6 +880,83 @@ function findClosestElements(r: Recorder, nums: number[], k: number, x: number) 
   });
 }
 
+/* ── Repeated DNA Sequences ───────────────────────────────────────────────── */
+
+function findRepeatedDnaSequences(r: Recorder, s: string) {
+  const cs = chars(s);
+  let l = 0;
+  const res = new Set<string>();
+  const seen = new Set<string>();
+
+  const view = (rr: number, o: { hit?: string; state?: CellState } = {}): Visual[] => [
+    arr(cs, {
+      title: 's',
+      states: cs.map((_, i) => (i === rr ? (o.state ?? 'active') : i >= l && i < rr ? 'window' : i < l ? 'muted' : undefined)),
+      pointers: [
+        { name: 'l', index: l },
+        { name: 'r', index: rr, tone: 2 },
+      ],
+      window: { from: l, to: rr, label: `length ${rr - l + 1}` },
+    }),
+    { ...setOf('seen', seen), entries: [...seen].map((key) => ({ key, state: key === o.hit ? 'compare' : undefined })) },
+    { ...setOf('res', res), entries: [...res].map((key) => ({ key, state: key === o.hit ? 'success' : undefined })) },
+  ];
+
+  r.step({
+    at: ['int l = 0;', 'Set<String> res = new HashSet<>();', 'Set<String> seen = new HashSet<>();'],
+    explain: 'Slide a window of exactly 10 letters across s. seen remembers every 10-letter sequence met so far; res collects the ones met a second time.',
+    vars: { l, 's.length()': s.length },
+    visuals: [arr(cs, { title: 's' }), setOf('seen', seen), setOf('res', res)],
+  });
+
+  for (let rr = 0; rr < s.length; rr++) {
+    const window = s.substring(l, rr + 1);
+
+    if (rr + 1 < 10) {
+      // Show the warm-up once, when the window is one letter short of 10.
+      if (rr === Math.min(8, s.length - 1)) {
+        r.step({
+          at: ['for (int r = 0; r < s.length(); r++) {', 'String window = s.substring(l, r + 1);'],
+          explain: `For r = 0…${rr} the window is still shorter than 10 letters, so it just grows: l stays at 0 and nothing is recorded.`,
+          vars: { l, r: rr, window },
+          visuals: view(rr),
+        });
+      }
+      continue;
+    }
+
+    const wasSeen = seen.has(window);
+    const alreadyRes = res.has(window);
+    if (wasSeen) res.add(window);
+    if (!res.has(window)) seen.add(window);
+    r.step({
+      at: wasSeen
+        ? ['if (r + 1 >= 10) {', 'if (seen.contains(window)) res.add(window);', 'l++;']
+        : ['if (r + 1 >= 10) {', 'if (!res.contains(window)) seen.add(window);', 'l++;'],
+      explain: wasSeen
+        ? alreadyRes
+          ? `"${window}" is already in res. The set ignores the duplicate, so a sequence is reported once no matter how often it repeats.`
+          : `"${window}" was seen before, so it occurs at least twice: add it to res.`
+        : `"${window}" is new. Remember it in seen so a later copy will be recognised.`,
+      vars: { l, r: rr, window },
+      visuals: view(rr, { hit: window, state: wasSeen ? 'success' : 'active' }),
+      tone: wasSeen && !alreadyRes ? 'success' : undefined,
+    });
+    l++;
+  }
+
+  const out = javaHashMapOrder([...res], javaStringHash);
+  r.step({
+    at: 'return new ArrayList<>(res);',
+    explain: out.length
+      ? 'Every 10-letter sequence that appeared more than once, in HashSet iteration order.'
+      : 'No 10-letter sequence appeared twice.',
+    visuals: [arr(cs, { title: 's' }), setOf('res', res)],
+    tone: out.length ? 'success' : 'error',
+    result: `return [${out.map((x) => `"${x}"`).join(', ')}]`,
+  });
+}
+
 /* ── Registry ─────────────────────────────────────────────────────────────── */
 
 export const slidingWindowTracers: Record<string, Tracer> = {
@@ -947,6 +1024,13 @@ export const slidingWindowTracers: Record<string, Tracer> = {
       { label: 'arr = [1,2,3,4,5], k = 4, x = 3', input: 'arr = [1, 2, 3, 4, 5], k = 4, x = 3', run: (r) => findClosestElements(r, [1, 2, 3, 4, 5], 4, 3) },
       { label: 'window slides right', input: 'arr = [1, 3, 5, 7, 9, 11], k = 3, x = 8', run: (r) => findClosestElements(r, [1, 3, 5, 7, 9, 11], 3, 8) },
       { label: 'x below every value', input: 'arr = [2, 4, 6, 8, 10], k = 2, x = 1', run: (r) => findClosestElements(r, [2, 4, 6, 8, 10], 2, 1) },
+    ],
+  },
+  'medium/slidingwindow/FindRepeatedDNASequences': {
+    examples: [
+      { label: 's = "AAAAAAAAAAAAA"', input: 's = "AAAAAAAAAAAAA"', run: (r) => findRepeatedDnaSequences(r, 'AAAAAAAAAAAAA') },
+      { label: 'period-4 repeat', input: 's = "ACGTACGTACGTACGT"', run: (r) => findRepeatedDnaSequences(r, 'ACGTACGTACGTACGT') },
+      { label: 'no repeats', input: 's = "AACCGGTTAACC"', run: (r) => findRepeatedDnaSequences(r, 'AACCGGTTAACC') },
     ],
   },
 };
